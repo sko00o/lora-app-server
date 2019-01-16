@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/NickBall/go-aes-key-wrap"
+	keywrap "github.com/NickBall/go-aes-key-wrap"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jmoiron/sqlx"
@@ -57,8 +57,10 @@ func (a *ApplicationServerAPI) HandleUplinkData(ctx context.Context, req *as.Han
 		}
 
 		now := time.Now()
+		dr := int(req.Dr)
 
 		d.LastSeenAt = &now
+		d.DR = &dr
 		err = storage.UpdateDevice(tx, &d, true)
 		if err != nil {
 			return grpc.Errorf(codes.Internal, "update device error: %s", err)

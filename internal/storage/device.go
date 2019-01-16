@@ -32,6 +32,7 @@ type Device struct {
 	DeviceStatusBattery       *float32      `db:"device_status_battery"`
 	DeviceStatusMargin        *int          `db:"device_status_margin"`
 	DeviceStatusExternalPower bool          `db:"device_status_external_power_source"`
+	DR                        *int          `db:"dr"`
 	Latitude                  *float64      `db:"latitude"`
 	Longitude                 *float64      `db:"longitude"`
 	Altitude                  *float64      `db:"altitude"`
@@ -92,8 +93,9 @@ func CreateDevice(db sqlx.Ext, d *Device) error {
 			last_seen_at,
 			latitude,
 			longitude,
-			altitude
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+			altitude,
+			dr
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		d.DevEUI[:],
 		d.CreatedAt,
 		d.UpdatedAt,
@@ -108,6 +110,7 @@ func CreateDevice(db sqlx.Ext, d *Device) error {
 		d.Latitude,
 		d.Longitude,
 		d.Altitude,
+		d.DR,
 	)
 	if err != nil {
 		return handlePSQLError(Insert, err, "insert error")
@@ -329,7 +332,8 @@ func UpdateDevice(db sqlx.Ext, d *Device, localOnly bool) error {
 			latitude = $10,
 			longitude = $11,
 			altitude = $12,
-			device_status_external_power_source = $13
+			device_status_external_power_source = $13,
+			dr = $14
         where
             dev_eui = $1`,
 		d.DevEUI[:],
@@ -345,6 +349,7 @@ func UpdateDevice(db sqlx.Ext, d *Device, localOnly bool) error {
 		d.Longitude,
 		d.Altitude,
 		d.DeviceStatusExternalPower,
+		d.DR,
 	)
 	if err != nil {
 		return handlePSQLError(Update, err, "update error")

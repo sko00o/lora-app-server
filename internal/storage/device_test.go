@@ -185,12 +185,14 @@ func (ts *StorageTestSuite) TestDevice() {
 			lat := float64(1.123)
 			long := float64(2.123)
 			alt := float64(3.123)
+			dr := 3
 
 			d.Name = "updated-test-device"
 			d.DeviceProfileID = dp2ID
 			d.Latitude = &lat
 			d.Longitude = &long
 			d.Altitude = &alt
+			d.DR = &dr
 
 			assert.NoError(UpdateDevice(ts.Tx(), &d, false))
 			d.UpdatedAt = d.UpdatedAt.UTC().Truncate(time.Millisecond)
