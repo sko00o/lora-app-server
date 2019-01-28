@@ -71,10 +71,10 @@ func (a *MulticastGroupAPI) Create(ctx context.Context, req *pb.CreateMulticastG
 	mg := storage.MulticastGroup{
 		Name:             req.MulticastGroup.Name,
 		ServiceProfileID: spID,
+		FCnt:             req.MulticastGroup.FCnt,
 		MulticastGroup: ns.MulticastGroup{
 			McAddr:           mcAddr[:],
 			McNwkSKey:        mcNwkSKey[:],
-			FCnt:             req.MulticastGroup.FCnt,
 			GroupType:        ns.MulticastGroupType(req.MulticastGroup.GroupType),
 			Dr:               req.MulticastGroup.Dr,
 			Frequency:        req.MulticastGroup.Frequency,
@@ -135,7 +135,7 @@ func (a *MulticastGroupAPI) Get(ctx context.Context, req *pb.GetMulticastGroupRe
 			McAddr:           mcAddr.String(),
 			McNwkSKey:        mcNwkSKey.String(),
 			McAppSKey:        mg.MCAppSKey.String(),
-			FCnt:             mg.MulticastGroup.FCnt,
+			FCnt:             mg.FCnt,
 			GroupType:        pb.MulticastGroupType(mg.MulticastGroup.GroupType),
 			Dr:               mg.MulticastGroup.Dr,
 			Frequency:        mg.MulticastGroup.Frequency,
@@ -189,11 +189,11 @@ func (a *MulticastGroupAPI) Update(ctx context.Context, req *pb.UpdateMulticastG
 	}
 
 	mg.Name = req.MulticastGroup.Name
+	mg.FCnt = req.MulticastGroup.FCnt
 	mg.MulticastGroup = ns.MulticastGroup{
 		Id:               mg.MulticastGroup.Id,
 		McAddr:           mcAddr[:],
 		McNwkSKey:        mcNwkSKey[:],
-		FCnt:             req.MulticastGroup.FCnt,
 		GroupType:        ns.MulticastGroupType(req.MulticastGroup.GroupType),
 		Dr:               req.MulticastGroup.Dr,
 		Frequency:        req.MulticastGroup.Frequency,
