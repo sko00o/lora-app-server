@@ -108,6 +108,31 @@ func GetRemoteMulticastSetup(db sqlx.Queryer, devEUI lorawan.EUI64, multicastGro
 	return dmg, nil
 }
 
+// GetRemoteMulticastSetupByGroupID returns the multicast-setup given a DevEUI and McGroupID.
+func GetRemoteMulticastSetupByGroupID(db sqlx.Queryer, devEUI lorawan.EUI64, mcGroupID int, forUpdate bool) (RemoteMulticastSetup, error) {
+	var fu string
+	if forUpdate {
+		fu = " for update"
+	}
+
+	var dmg RemoteMulticastSetup
+	if err := sqlx.Get(db, &dmg, `
+		select
+			*
+		from
+			remote_multicast_setup
+		where
+			dev_eui = $1
+			and mc_group_id = $2`+fu,
+		devEUI,
+		mcGroupID,
+	); err != nil {
+		return dmg, handlePSQLError(Select, err, "select error")
+	}
+
+	return dmg, nil
+}
+
 // GetPendingRemoteMulticastSetupItems returns a slice of pending remote multicast-setup items.
 // The selected items will be locked.
 func GetPendingRemoteMulticastSetupItems(db sqlx.Queryer, limit, maxRetryCount int) ([]RemoteMulticastSetup, error) {

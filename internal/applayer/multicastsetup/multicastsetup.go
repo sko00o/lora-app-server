@@ -1,6 +1,7 @@
 package multicastsetup
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -10,6 +11,7 @@ import (
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/downlink"
 	"github.com/brocaar/lora-app-server/internal/storage"
+	"github.com/brocaar/lorawan"
 	"github.com/brocaar/lorawan/applayer/multicastsetup"
 )
 
@@ -25,6 +27,49 @@ func SyncRemoteMulticastSetupLoop() {
 		}
 		time.Sleep(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
 	}
+}
+
+// HandleRemoteMulticastSetupCommand handles an uplink remote multicast setup command.
+func HandleRemoteMulticastSetupCommand(db sqlx.Ext, devEUI lorawan.EUI64, b []byte) error {
+	var cmd multicastsetup.Command
+
+	if err := cmd.UnmarshalBinary(true, b); err != nil {
+		errors.Wrap(err, "unmarshal command error")
+	}
+
+	switch cmd.CID {
+	case multicastsetup.McGroupSetupAns:
+		pl, ok := cmd.Payload.(*multicastsetup.McGroupSetupAnsPayload)
+		if !ok {
+			return fmt.Errorf("expected *multicastsetup.McGroupSetupAnsPayload, got: %T", cmd.Payload)
+		}
+		if err := handleMcGroupSetupAns(db, devEUI, pl); err != nil {
+			return errors.Wrap(err, "handle McGroupSetupAns error")
+		}
+
+	default:
+		return fmt.Errorf("CID not implemented: %s", cmd.CID)
+	}
+
+	return nil
+}
+
+func handleMcGroupSetupAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetup.McGroupSetupAnsPayload) error {
+	if pl.McGroupIDHeader.IDError {
+		return fmt.Errorf("IDError for McGroupID: %d", pl.McGroupIDHeader.McGroupID)
+	}
+
+	rms, err := storage.GetRemoteMulticastSetupByGroupID(db, devEUI, int(pl.McGroupIDHeader.McGroupID), true)
+	if err != nil {
+		return errors.Wrap(err, "get remote multicast-setup by group id error")
+	}
+
+	rms.StateProvisioned = true
+	if err := storage.UpdateRemoteMulticastSetup(db, &rms); err != nil {
+		return errors.Wrap(err, "update remote multicast-setup error")
+	}
+
+	return nil
 }
 
 func syncRemoteMulticastSetup(db sqlx.Ext) error {

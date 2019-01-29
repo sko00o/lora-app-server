@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"github.com/brocaar/lora-app-server/internal/applayer/multicastsetup"
 	"github.com/brocaar/lora-app-server/internal/codec"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/eventlog"
@@ -99,6 +100,26 @@ func (a *ApplicationServerAPI) HandleUplinkData(ctx context.Context, req *as.Han
 			"f_cnt":   req.FCnt,
 		}).Errorf("decrypt payload error: %s", err)
 		return nil, grpc.Errorf(codes.Internal, "decrypt payload error: %s", err)
+	}
+
+	// payload is handled by the LoRa App Server internal applayer
+	var internalApplayer bool
+
+	if err := storage.Transaction(config.C.PostgreSQL.DB, func(db sqlx.Ext) error {
+		switch uint8(req.FPort) {
+		case config.C.ApplicationServer.RemoteMulticastSetup.FPort:
+			internalApplayer = true
+			if err := multicastsetup.HandleRemoteMulticastSetupCommand(db, d.DevEUI, b); err != nil {
+				return grpc.Errorf(codes.Internal, "handle remote multicast setup error: %s", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	if internalApplayer {
+		return &empty.Empty{}, nil
 	}
 
 	var object interface{}

@@ -62,6 +62,7 @@ type Config struct {
 			SyncInterval time.Duration `mapstructure:"sync_interval"`
 			SyncRetries  int           `mapstructure:"sync_retries"`
 			BatchSize    int           `mapstructure:"batch_size"`
+			FPort        uint8         `mapstructure:"f_port"`
 		} `mapstructure:"remote_multicast_setup"`
 
 		Branding struct {
