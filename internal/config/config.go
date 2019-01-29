@@ -58,6 +58,12 @@ type Config struct {
 			DisableAssignExistingUsers bool   `mapstructure:"disable_assign_existing_users"`
 		} `mapstructure:"external_api"`
 
+		RemoteMulticastSetup struct {
+			SyncInterval time.Duration `mapstructure:"sync_interval"`
+			SyncRetries  int           `mapstructure:"sync_retries"`
+			BatchSize    int           `mapstructure:"batch_size"`
+		} `mapstructure:"remote_multicast_setup"`
+
 		Branding struct {
 			Header       string
 			Footer       string

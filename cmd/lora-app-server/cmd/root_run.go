@@ -34,6 +34,7 @@ import (
 	pb "github.com/brocaar/lora-app-server/api"
 	"github.com/brocaar/lora-app-server/internal/api"
 	"github.com/brocaar/lora-app-server/internal/api/auth"
+	"github.com/brocaar/lora-app-server/internal/applayer/multicastsetup"
 	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/downlink"
@@ -68,6 +69,7 @@ func run(cmd *cobra.Command, args []string) error {
 		handleDataDownPayloads,
 		startApplicationServerAPI,
 		startGatewayPing,
+		startSyncRemoteMulticastSetupLoop,
 		startJoinServerAPI,
 		startClientAPI(ctx),
 	}
@@ -212,6 +214,11 @@ func startApplicationServerAPI() error {
 func startGatewayPing() error {
 	go gwping.SendPingLoop()
 
+	return nil
+}
+
+func startSyncRemoteMulticastSetupLoop() error {
+	go multicastsetup.SyncRemoteMulticastSetupLoop()
 	return nil
 }
 
