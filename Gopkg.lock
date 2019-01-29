@@ -40,10 +40,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b7ac1c86012fb9b5d9bb4be6f75b06881a2e8a98edc035ad32211d3c3f94083f"
+  digest = "1:cde77b0d336ae9cd506832936df1d936e744e408d15e81bca45940809f433141"
   name = "github.com/brocaar/lorawan"
   packages = [
     ".",
+    "applayer/multicastsetup",
     "backend",
     "band",
   ]
@@ -704,6 +705,7 @@
     "github.com/brocaar/loraserver/api/gw",
     "github.com/brocaar/loraserver/api/ns",
     "github.com/brocaar/lorawan",
+    "github.com/brocaar/lorawan/applayer/multicastsetup",
     "github.com/brocaar/lorawan/backend",
     "github.com/dgrijalva/jwt-go",
     "github.com/eclipse/paho.mqtt.golang",

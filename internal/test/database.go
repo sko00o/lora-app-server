@@ -1,15 +1,11 @@
-package api
+package test
 
 import (
-	"testing"
-
 	"github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/suite"
 
 	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
-	"github.com/brocaar/lora-app-server/internal/test"
 )
 
 // DatabaseTestSuiteBase provides the setup and teardown of the database
@@ -22,13 +18,13 @@ type DatabaseTestSuiteBase struct {
 
 // SetupSuite is called once before starting the test-suite.
 func (b *DatabaseTestSuiteBase) SetupSuite() {
-	conf := test.GetConfig()
+	conf := GetConfig()
 	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		panic(err)
 	}
 	b.db = db
-
+	MustResetDB(db)
 	b.p = common.NewRedisPool(conf.RedisURL, 10, 0)
 
 	config.C.PostgreSQL.DB = db
@@ -43,13 +39,22 @@ func (b *DatabaseTestSuiteBase) SetupTest() {
 	}
 	b.tx = tx
 
-	test.MustFlushRedis(b.p)
-	test.MustResetDB(b.db)
+	MustFlushRedis(b.p)
 }
 
 // TearDownTest is called after every test.
 func (b *DatabaseTestSuiteBase) TearDownTest() {
 	if err := b.tx.Rollback(); err != nil {
+		panic(err)
+	}
+}
+
+// TearDownSuite is called once after completing the tests.
+func (b *DatabaseTestSuiteBase) TearDownSuite() {
+	if err := b.db.Close(); err != nil {
+		panic(err)
+	}
+	if err := b.p.Close(); err != nil {
 		panic(err)
 	}
 }
@@ -60,7 +65,7 @@ func (b *DatabaseTestSuiteBase) Tx() sqlx.Ext {
 	return b.tx
 }
 
-// DB returns the database.
+// DB returns the database object.
 func (b *DatabaseTestSuiteBase) DB() *common.DBLogger {
 	return b.db
 }
@@ -68,13 +73,4 @@ func (b *DatabaseTestSuiteBase) DB() *common.DBLogger {
 // RedisPool returns the redis.Pool object.
 func (b *DatabaseTestSuiteBase) RedisPool() *redis.Pool {
 	return b.p
-}
-
-type APITestSuite struct {
-	suite.Suite
-	DatabaseTestSuiteBase
-}
-
-func TestAPI(t *testing.T) {
-	suite.Run(t, new(APITestSuite))
 }

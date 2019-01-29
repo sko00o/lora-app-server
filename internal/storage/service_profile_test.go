@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/loraserver/api/ns"
@@ -14,7 +15,7 @@ import (
 
 func TestServiceProfile(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := OpenDatabase(conf.PostgresDSN)
+	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,14 +63,14 @@ func TestServiceProfile(t *testing.T) {
 					DevStatusReqFreq:       4,
 					ReportDevStatusBattery: true,
 					ReportDevStatusMargin:  true,
-					DrMin:          3,
-					DrMax:          5,
-					PrAllowed:      true,
-					HrAllowed:      true,
-					RaAllowed:      true,
-					NwkGeoLoc:      true,
-					TargetPer:      10,
-					MinGwDiversity: 3,
+					DrMin:                  3,
+					DrMax:                  5,
+					PrAllowed:              true,
+					HrAllowed:              true,
+					RaAllowed:              true,
+					NwkGeoLoc:              true,
+					TargetPer:              10,
+					MinGwDiversity:         3,
 				},
 			}
 			So(CreateServiceProfile(config.C.PostgreSQL.DB, &sp), ShouldBeNil)
@@ -108,14 +109,14 @@ func TestServiceProfile(t *testing.T) {
 					DevStatusReqFreq:       5,
 					ReportDevStatusBattery: true,
 					ReportDevStatusMargin:  true,
-					DrMin:          4,
-					DrMax:          6,
-					PrAllowed:      true,
-					HrAllowed:      true,
-					RaAllowed:      true,
-					NwkGeoLoc:      true,
-					TargetPer:      11,
-					MinGwDiversity: 4,
+					DrMin:                  4,
+					DrMax:                  6,
+					PrAllowed:              true,
+					HrAllowed:              true,
+					RaAllowed:              true,
+					NwkGeoLoc:              true,
+					TargetPer:              11,
+					MinGwDiversity:         4,
 				}
 				So(UpdateServiceProfile(config.C.PostgreSQL.DB, &sp), ShouldBeNil)
 				sp.UpdatedAt = sp.UpdatedAt.UTC().Truncate(time.Millisecond)

@@ -8,6 +8,7 @@ import (
 
 	pb "github.com/brocaar/lora-app-server/api"
 	"github.com/brocaar/lora-app-server/internal/codec"
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
@@ -18,7 +19,7 @@ import (
 
 func TestDownlinkQueueAPI(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := storage.OpenDatabase(conf.PostgresDSN)
+	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}

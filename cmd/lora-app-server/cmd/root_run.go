@@ -17,9 +17,9 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/pkg/errors"
 	migrate "github.com/rubenv/sql-migrate"
@@ -34,6 +34,7 @@ import (
 	pb "github.com/brocaar/lora-app-server/api"
 	"github.com/brocaar/lora-app-server/internal/api"
 	"github.com/brocaar/lora-app-server/internal/api/auth"
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/downlink"
 	"github.com/brocaar/lora-app-server/internal/gwping"
@@ -110,7 +111,7 @@ func printStartMessage() error {
 
 func setPostgreSQLConnection() error {
 	log.Info("connecting to postgresql")
-	db, err := storage.OpenDatabase(config.C.PostgreSQL.DSN)
+	db, err := common.OpenDatabase(config.C.PostgreSQL.DSN)
 	if err != nil {
 		return errors.Wrap(err, "database connection error")
 	}
@@ -121,7 +122,7 @@ func setPostgreSQLConnection() error {
 func setRedisPool() error {
 	// setup redis pool
 	log.Info("setup redis connection pool")
-	config.C.Redis.Pool = storage.NewRedisPool(config.C.Redis.URL, config.C.Redis.MaxIdle, config.C.Redis.IdleTimeout)
+	config.C.Redis.Pool = common.NewRedisPool(config.C.Redis.URL, config.C.Redis.MaxIdle, config.C.Redis.IdleTimeout)
 	return nil
 }
 

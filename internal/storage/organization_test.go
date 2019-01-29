@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/pkg/errors"
@@ -12,7 +13,7 @@ import (
 
 func TestOrganization(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := OpenDatabase(conf.PostgresDSN)
+	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}

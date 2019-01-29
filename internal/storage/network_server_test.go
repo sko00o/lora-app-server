@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/loraserver/api/ns"
@@ -15,7 +16,7 @@ import (
 
 func TestNetworkServer(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := OpenDatabase(conf.PostgresDSN)
+	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/handler/influxdbhandler"
 
 	"github.com/brocaar/lora-app-server/internal/config"
@@ -36,12 +37,12 @@ func (h *testHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func TestHandler(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := storage.OpenDatabase(conf.PostgresDSN)
+	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
 	config.C.PostgreSQL.DB = db
-	config.C.Redis.Pool = storage.NewRedisPool(conf.RedisURL, 10, 0)
+	config.C.Redis.Pool = common.NewRedisPool(conf.RedisURL, 10, 0)
 
 	Convey("Given an MQTT client and handler, Redis and PostgreSQL databases and test http handler", t, func() {
 		opts := mqtt.NewClientOptions().AddBroker(conf.MQTTServer).SetUsername(conf.MQTTUsername).SetPassword(conf.MQTTPassword)

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/lorawan"
@@ -15,7 +16,7 @@ func TestGateway(t *testing.T) {
 	conf := test.GetConfig()
 
 	Convey("Given a clean database woth a network-server and organization", t, func() {
-		db, err := OpenDatabase(conf.PostgresDSN)
+		db, err := common.OpenDatabase(conf.PostgresDSN)
 		So(err, ShouldBeNil)
 		test.MustResetDB(db)
 

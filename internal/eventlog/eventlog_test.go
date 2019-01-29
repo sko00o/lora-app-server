@@ -8,15 +8,15 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
-	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/lorawan"
 )
 
 func TestEventLog(t *testing.T) {
 	conf := test.GetConfig()
-	p := storage.NewRedisPool(conf.RedisURL, 10, 0)
+	p := common.NewRedisPool(conf.RedisURL, 10, 0)
 	config.C.Redis.Pool = p
 
 	Convey("Given a clean Redis database", t, func() {

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "github.com/brocaar/lora-app-server/api"
+	c "github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/eventlog"
 	"github.com/brocaar/lora-app-server/internal/storage"
@@ -23,12 +24,12 @@ import (
 
 func TestNodeAPI(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := storage.OpenDatabase(conf.PostgresDSN)
+	db, err := c.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p := storage.NewRedisPool(conf.RedisURL, 10, 0)
+	p := c.NewRedisPool(conf.RedisURL, 10, 0)
 
 	config.C.PostgreSQL.DB = db
 	config.C.Redis.Pool = p

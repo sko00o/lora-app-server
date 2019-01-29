@@ -8,25 +8,25 @@ import (
 	"testing"
 
 	"github.com/gofrs/uuid"
+	. "github.com/smartystreets/goconvey/convey"
 
+	c "github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
-	"github.com/brocaar/lora-app-server/internal/test/testhandler"
-
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
+	"github.com/brocaar/lora-app-server/internal/test/testhandler"
 	"github.com/brocaar/lorawan"
 	"github.com/brocaar/lorawan/backend"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestJoinServerAPI(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := storage.OpenDatabase(conf.PostgresDSN)
+	db, err := c.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
 	config.C.PostgreSQL.DB = db
-	config.C.Redis.Pool = storage.NewRedisPool(conf.RedisURL, 10, 0)
+	config.C.Redis.Pool = c.NewRedisPool(conf.RedisURL, 10, 0)
 
 	Convey("Given a clean database with a device", t, func() {
 		test.MustResetDB(config.C.PostgreSQL.DB)

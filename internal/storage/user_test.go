@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/test"
 )
 
@@ -18,7 +19,7 @@ func TestUser(t *testing.T) {
 	// Note that a "clean" database includes the admin user.
 
 	Convey("Given a clean database", t, func() {
-		db, err := OpenDatabase(conf.PostgresDSN)
+		db, err := common.OpenDatabase(conf.PostgresDSN)
 		So(err, ShouldBeNil)
 		test.MustResetDB(db)
 

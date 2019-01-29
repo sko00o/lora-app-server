@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "github.com/brocaar/lora-app-server/api"
+	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
@@ -18,7 +19,7 @@ import (
 
 func TestServiceProfileServiceAPI(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := storage.OpenDatabase(conf.PostgresDSN)
+	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,14 +63,14 @@ func TestServiceProfileServiceAPI(t *testing.T) {
 					DevStatusReqFreq:       4,
 					ReportDevStatusBattery: true,
 					ReportDevStatusMargin:  true,
-					DrMin:          3,
-					DrMax:          5,
-					PrAllowed:      true,
-					HrAllowed:      true,
-					RaAllowed:      true,
-					NwkGeoLoc:      true,
-					TargetPer:      10,
-					MinGwDiversity: 3,
+					DrMin:                  3,
+					DrMax:                  5,
+					PrAllowed:              true,
+					HrAllowed:              true,
+					RaAllowed:              true,
+					NwkGeoLoc:              true,
+					TargetPer:              10,
+					MinGwDiversity:         3,
 				},
 			}
 
@@ -112,14 +113,14 @@ func TestServiceProfileServiceAPI(t *testing.T) {
 						DevStatusReqFreq:       5,
 						ReportDevStatusBattery: true,
 						ReportDevStatusMargin:  true,
-						DrMin:          2,
-						DrMax:          4,
-						PrAllowed:      true,
-						HrAllowed:      true,
-						RaAllowed:      true,
-						NwkGeoLoc:      true,
-						TargetPer:      20,
-						MinGwDiversity: 4,
+						DrMin:                  2,
+						DrMax:                  4,
+						PrAllowed:              true,
+						HrAllowed:              true,
+						RaAllowed:              true,
+						NwkGeoLoc:              true,
+						TargetPer:              20,
+						MinGwDiversity:         4,
 					},
 				}
 
