@@ -13,6 +13,7 @@ import (
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/lorawan"
 	"github.com/brocaar/lorawan/applayer/multicastsetup"
+	"github.com/brocaar/lorawan/gps"
 )
 
 type MulticastSetupTestSuite struct {
@@ -242,6 +243,114 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastDeleteReq() {
 			},
 		},
 	}, cmd)
+}
+
+func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionReq() {
+	assert := require.New(ts.T())
+	now := time.Now().Round(time.Second)
+
+	ms := storage.RemoteMulticastSetup{
+		DevEUI:           ts.Device.DevEUI,
+		McGroupID:        1,
+		State:            storage.RemoteMulticastSetupSetup,
+		StateProvisioned: true,
+	}
+	copy(ms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &ms))
+
+	sess := storage.RemoteMulticastClassCSession{
+		DevEUI:         ts.Device.DevEUI,
+		McGroupID:      1,
+		SessionTime:    now,
+		SessionTimeOut: 10,
+		DLFrequency:    868100000,
+		DR:             3,
+	}
+	copy(sess.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
+	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
+	assert.NoError(syncRemoteMulticastClassCSession(ts.Tx()))
+
+	sess, err := storage.GetRemoteMulticastClassCSession(ts.Tx(), sess.DevEUI, sess.MulticastGroupID, false)
+	assert.NoError(err)
+	assert.Equal(1, sess.RetryCount)
+	assert.True(sess.RetryAfter.After(time.Now()))
+
+	req := <-ts.NSClient.CreateDeviceQueueItemChan
+	assert.Equal(multicastsetup.DefaultFPort, uint8(req.Item.FPort))
+
+	b, err := lorawan.EncryptFRMPayload(ts.DeviceActivation.AppSKey, false, ts.DeviceActivation.DevAddr, 0, req.Item.FrmPayload)
+	assert.NoError(err)
+
+	var cmd multicastsetup.Command
+	assert.NoError(cmd.UnmarshalBinary(false, b))
+
+	assert.Equal(multicastsetup.Command{
+		CID: multicastsetup.McClassCSessionReq,
+		Payload: &multicastsetup.McClassCSessionReqPayload{
+			McGroupIDHeader: multicastsetup.McClassCSessionReqPayloadMcGroupIDHeader{
+				McGroupID: 1,
+			},
+			SessionTime: uint32((gps.Time(now).TimeSinceGPSEpoch() / time.Second) % (1 << 32)),
+			SessionTimeOut: multicastsetup.McClassCSessionReqPayloadSessionTimeOut{
+				TimeOut: 10,
+			},
+			DLFrequency: 868100000,
+			DR:          3,
+		},
+	}, cmd)
+}
+
+func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionAns() {
+	assert := require.New(ts.T())
+
+	sess := storage.RemoteMulticastClassCSession{
+		DevEUI:         ts.Device.DevEUI,
+		McGroupID:      1,
+		SessionTimeOut: 10,
+		DLFrequency:    868100000,
+		DR:             3,
+	}
+	copy(sess.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
+	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
+
+	ts.T().Run("Error", func(t *testing.T) {
+		assert := require.New(t)
+
+		cmd := multicastsetup.Command{
+			CID: multicastsetup.McClassCSessionAns,
+			Payload: &multicastsetup.McClassCSessionAnsPayload{
+				StatusAndMcGroupID: multicastsetup.McClassCSessionAnsPayloadStatusAndMcGroupID{
+					McGroupUndefined: true,
+					McGroupID:        1,
+				},
+			},
+		}
+		b, err := cmd.MarshalBinary()
+		assert.NoError(err)
+		assert.Equal("handle McClassCSessionAns error: DRError: false, FreqError: false, McGroupUndefined: true for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+	})
+
+	ts.T().Run("OK", func(t *testing.T) {
+		assert := require.New(t)
+		tts := uint32(100)
+
+		cmd := multicastsetup.Command{
+			CID: multicastsetup.McClassCSessionAns,
+			Payload: &multicastsetup.McClassCSessionAnsPayload{
+				StatusAndMcGroupID: multicastsetup.McClassCSessionAnsPayloadStatusAndMcGroupID{
+					McGroupID: 1,
+				},
+				TimeToStart: &tts,
+			},
+		}
+		b, err := cmd.MarshalBinary()
+		assert.NoError(err)
+		assert.NoError(HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b))
+
+		sess, err := storage.GetRemoteMulticastClassCSessionByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
+		assert.NoError(err)
+		assert.True(sess.StateProvisioned)
+	})
 }
 
 func TestMulticastSetup(t *testing.T) {

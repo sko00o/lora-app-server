@@ -34,6 +34,26 @@ create table remote_multicast_setup (
 create index idx_remote_multicast_setup_state_provisioned on remote_multicast_setup(state_provisioned);
 create index idx_remote_multicast_setup_retry_after on remote_multicast_setup(retry_after);
 
+create table remote_multicast_class_c_session (
+    dev_eui bytea not null references device on delete cascade,
+    multicast_group_id uuid not null references multicast_group on delete cascade,
+    created_at timestamp with time zone not null,
+    updated_at timestamp with time zone not null,
+    mc_group_id smallint not null,
+    session_time timestamp with time zone not null,
+    session_time_out smallint not null,
+    dl_frequency integer not null,
+    dr smallint not null,
+    state_provisioned bool not null default false,
+    retry_after timestamp with time zone not null,
+    retry_count smallint not null,
+
+    primary key(dev_eui, mc_group_id)
+);
+
+create index idx_remote_multicast_class_c_session_state_provisioned on remote_multicast_class_c_session(state_provisioned);
+create index idx_remote_multicast_class_c_session_state_retry_after on remote_multicast_class_c_session(retry_after);
+
 -- +migrate Down
 alter table multicast_group
     drop column mc_key,
@@ -42,7 +62,10 @@ alter table multicast_group
 alter table device_keys
     drop column gen_app_key;
 
+drop index idx_remote_multicast_class_c_session_state_retry_after;
+drop index idx_remote_multicast_class_c_session_state_provisioned;
+drop table remote_multicast_class_c_session;
+
 drop index idx_remote_multicast_setup_retry_after;
 drop index idx_remote_multicast_setup_state_provisioned;
 drop table remote_multicast_setup;
-

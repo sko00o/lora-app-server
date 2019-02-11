@@ -3,11 +3,12 @@ package storage
 import (
 	"time"
 
-	"github.com/brocaar/lorawan"
 	uuid "github.com/gofrs/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/brocaar/lorawan"
 )
 
 // RemoteMulticastSetupState defines the state type.
@@ -79,7 +80,7 @@ func CreateRemoteMulticastSetup(db sqlx.Ext, dms *RemoteMulticastSetup) error {
 	log.WithFields(log.Fields{
 		"dev_eui":            dms.DevEUI,
 		"multicast_group_id": dms.MulticastGroupID,
-	}).Info("device multicast-setup created")
+	}).Info("remote multicast-setup created")
 	return nil
 }
 
@@ -160,7 +161,7 @@ func GetPendingRemoteMulticastSetupItems(db sqlx.Queryer, limit, maxRetryCount i
 	return items, nil
 }
 
-// UpdateRemoteMulticastSetup updates the given device multicast-group setup.
+// UpdateRemoteMulticastSetup updates the given update multicast-group setup.
 func UpdateRemoteMulticastSetup(db sqlx.Ext, dmg *RemoteMulticastSetup) error {
 	dmg.UpdatedAt = time.Now()
 
@@ -208,7 +209,7 @@ func UpdateRemoteMulticastSetup(db sqlx.Ext, dmg *RemoteMulticastSetup) error {
 	log.WithFields(log.Fields{
 		"dev_eui":            dmg.DevEUI,
 		"multicast_group_id": dmg.MulticastGroupID,
-	}).Info("device multicast-setup updated")
+	}).Info("remote multicast-setup updated")
 	return nil
 }
 
@@ -236,6 +237,6 @@ func DeleteRemoteMulticastSetup(db sqlx.Ext, devEUI lorawan.EUI64, multicastGrou
 	log.WithFields(log.Fields{
 		"dev_eui":            devEUI,
 		"multicast_group_id": multicastGroupID,
-	}).Info("device multicast-setup deleted")
+	}).Info("remote multicast-setup deleted")
 	return nil
 }

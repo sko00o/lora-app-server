@@ -12,7 +12,7 @@ import (
 	"github.com/brocaar/lorawan"
 )
 
-func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
+func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 	assert := require.New(ts.T())
 
 	nsClient := test.NewNetworkServerClient()
@@ -75,40 +75,62 @@ func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
 
 	now := time.Now().UTC().Round(time.Millisecond)
 
+	rms := RemoteMulticastSetup{
+		DevEUI:           d.DevEUI,
+		MulticastGroupID: mgID,
+		McGroupID:        1,
+		State:            RemoteMulticastSetupSetup,
+		StateProvisioned: false,
+	}
+	assert.NoError(CreateRemoteMulticastSetup(ts.Tx(), &rms))
+
 	ts.T().Run("Create", func(t *testing.T) {
 		assert := require.New(t)
 
-		dmg := RemoteMulticastSetup{
+		sess := RemoteMulticastClassCSession{
 			DevEUI:           d.DevEUI,
 			MulticastGroupID: mgID,
-			McGroupID:        2,
-			McAddr:           lorawan.DevAddr{1, 2, 3, 4},
-			McKeyEncrypted:   lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8},
-			MinMcFCnt:        10,
-			MaxMcFCnt:        20,
-			State:            RemoteMulticastSetupSetup,
+			McGroupID:        1,
+			SessionTime:      now.Add(time.Minute),
+			SessionTimeOut:   10,
+			DLFrequency:      868100000,
+			DR:               3,
 			RetryAfter:       now,
 			RetryCount:       1,
 		}
-		assert.NoError(CreateRemoteMulticastSetup(ts.Tx(), &dmg))
-		dmg.CreatedAt = dmg.CreatedAt.UTC().Round(time.Millisecond)
-		dmg.UpdatedAt = dmg.UpdatedAt.UTC().Round(time.Millisecond)
+		assert.NoError(CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
+		sess.CreatedAt = sess.CreatedAt.UTC()
+		sess.UpdatedAt = sess.UpdatedAt.UTC()
+		sess.RetryAfter = sess.RetryAfter.UTC()
+		sess.SessionTime = sess.SessionTime.UTC()
 
 		t.Run("Get", func(t *testing.T) {
 			assert := require.New(t)
 
-			dmgGet, err := GetRemoteMulticastSetup(ts.Tx(), d.DevEUI, mgID, false)
+			sessGet, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
 			assert.NoError(err)
-			dmgGet.CreatedAt = dmgGet.CreatedAt.UTC().Round(time.Millisecond)
-			dmgGet.UpdatedAt = dmgGet.UpdatedAt.UTC().Round(time.Millisecond)
-			dmgGet.RetryAfter = dmgGet.RetryAfter.UTC()
-			assert.Equal(dmg, dmgGet)
+			sessGet.CreatedAt = sessGet.CreatedAt.UTC()
+			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC()
+			sessGet.RetryAfter = sessGet.RetryAfter.UTC()
+			sessGet.SessionTime = sessGet.SessionTime.UTC()
+			assert.Equal(sess, sessGet)
+		})
+
+		t.Run("GetPending no setup", func(t *testing.T) {
+			assert := require.New(t)
+
+			items, err := GetPendingRemoteMulticastClassCSessions(ts.Tx(), 10, 2)
+			assert.NoError(err)
+			assert.Len(items, 0)
 		})
 
 		t.Run("GetPending", func(t *testing.T) {
 			assert := require.New(t)
 
-			items, err := GetPendingRemoteMulticastSetupItems(ts.Tx(), 10, 2)
+			rms.StateProvisioned = true
+			assert.NoError(UpdateRemoteMulticastSetup(ts.Tx(), &rms))
+
+			items, err := GetPendingRemoteMulticastClassCSessions(ts.Tx(), 10, 2)
 			assert.NoError(err)
 			assert.Len(items, 1)
 
@@ -117,7 +139,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
 			newTX, err := ts.DB().Beginx()
 			assert.NoError(err)
 
-			items, err = GetPendingRemoteMulticastSetupItems(newTX, 10, 2)
+			items, err = GetPendingRemoteMulticastClassCSessions(newTX, 10, 2)
 			assert.NoError(err)
 			assert.Len(items, 0)
 
@@ -128,28 +150,28 @@ func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
 			assert := require.New(t)
 			now = now.Add(time.Second)
 
-			dmg.McGroupID = 3
-			dmg.McAddr = lorawan.DevAddr{4, 3, 2, 1}
-			dmg.McKeyEncrypted = lorawan.AES128Key{8, 7, 6, 5, 4, 3, 2, 1, 8, 7, 6, 5, 4, 3, 2, 1}
-			dmg.MinMcFCnt = 100
-			dmg.MaxMcFCnt = 200
-			dmg.State = RemoteMulticastSetupDelete
-			dmg.StateProvisioned = true
-			dmg.RetryAfter = now
-			assert.NoError(UpdateRemoteMulticastSetup(ts.Tx(), &dmg))
-			dmg.UpdatedAt = dmg.UpdatedAt.UTC().Round(time.Millisecond)
+			sess.McGroupID = 3
+			sess.SessionTime = now.Add(time.Hour)
+			sess.SessionTimeOut = 20
+			sess.DLFrequency = 86300000
+			sess.DR = 2
+			sess.StateProvisioned = true
+			sess.RetryAfter = now
+			assert.NoError(UpdateRemoteMulticastClassCSession(ts.Tx(), &sess))
+			sess.UpdatedAt = sess.UpdatedAt.UTC()
 
-			dmgGet, err := GetRemoteMulticastSetup(ts.Tx(), d.DevEUI, mgID, false)
+			sessGet, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
 			assert.NoError(err)
-			dmgGet.CreatedAt = dmgGet.CreatedAt.UTC().Round(time.Millisecond)
-			dmgGet.UpdatedAt = dmgGet.UpdatedAt.UTC().Round(time.Millisecond)
-			dmgGet.RetryAfter = dmgGet.RetryAfter.UTC()
-			assert.Equal(dmg, dmgGet)
+			sessGet.CreatedAt = sessGet.CreatedAt.UTC()
+			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC()
+			sessGet.RetryAfter = sessGet.RetryAfter.UTC()
+			sessGet.SessionTime = sessGet.SessionTime.UTC()
+			assert.Equal(sess, sessGet)
 
 			t.Run("GetPending", func(t *testing.T) {
 				assert := require.New(t)
 
-				items, err := GetPendingRemoteMulticastSetupItems(ts.Tx(), 10, 2)
+				items, err := GetPendingRemoteMulticastClassCSessions(ts.Tx(), 10, 2)
 				assert.NoError(err)
 				assert.Len(items, 0)
 			})
@@ -158,8 +180,8 @@ func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
 		t.Run("Delete", func(t *testing.T) {
 			assert := require.New(t)
 
-			assert.NoError(DeleteRemoteMulticastSetup(ts.Tx(), d.DevEUI, mgID))
-			_, err := GetRemoteMulticastSetup(ts.Tx(), d.DevEUI, mgID, false)
+			assert.NoError(DeleteRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID))
+			_, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
 			assert.Equal(err, ErrDoesNotExist)
 		})
 	})
