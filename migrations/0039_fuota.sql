@@ -48,19 +48,39 @@ create table remote_multicast_class_c_session (
     retry_after timestamp with time zone not null,
     retry_count smallint not null,
 
-    primary key(dev_eui, mc_group_id)
+    primary key(dev_eui, multicast_group_id)
 );
 
 create index idx_remote_multicast_class_c_session_state_provisioned on remote_multicast_class_c_session(state_provisioned);
 create index idx_remote_multicast_class_c_session_state_retry_after on remote_multicast_class_c_session(retry_after);
 
--- +migrate Down
-alter table multicast_group
-    drop column mc_key,
-    drop column f_cnt;
+create table remote_fragmentation_session (
+    dev_eui bytea not null references device on delete cascade,
+    frag_index smallint not null,
+    created_at timestamp with time zone not null,
+    updated_at timestamp with time zone not null,
+    mc_group_ids smallint[],
+    nb_frag integer not null,
+    frag_size smallint not null,
+    fragmentation_matrix bytea not null,
+    block_ack_delay smallint not null,
+    padding smallint not null,
+    descriptor bytea not null,
+    state varchar(20) not null,
+    state_provisioned bool not null default false,
+    retry_after timestamp with time zone not null,
+    retry_count smallint not null,
 
-alter table device_keys
-    drop column gen_app_key;
+    primary key(dev_eui, frag_index)
+);
+
+create index idx_remote_fragmentation_session_state_provisioned on remote_fragmentation_session(state_provisioned);
+create index idx_remote_fragmentation_session_retry_after on remote_fragmentation_session(retry_after);
+
+-- +migrate Down
+drop index idx_remote_fragmentation_session_retry_after;
+drop index idx_remote_fragmentation_session_state_provisioned;
+drop table remote_fragmentation_session;
 
 drop index idx_remote_multicast_class_c_session_state_retry_after;
 drop index idx_remote_multicast_class_c_session_state_provisioned;
@@ -69,3 +89,10 @@ drop table remote_multicast_class_c_session;
 drop index idx_remote_multicast_setup_retry_after;
 drop index idx_remote_multicast_setup_state_provisioned;
 drop table remote_multicast_setup;
+
+alter table device_keys
+    drop column gen_app_key;
+
+alter table multicast_group
+    drop column mc_key,
+    drop column f_cnt;

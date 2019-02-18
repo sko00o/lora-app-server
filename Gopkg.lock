@@ -40,16 +40,18 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b3d5d2f78a0d8fe122d549d8e1dc08e20761f18f54b230eb4429eb57e178cafa"
+  digest = "1:b21b8e5414a50a5fe66a8f0367407e05ac31817374cf2ea577eb633b46838f3c"
   name = "github.com/brocaar/lorawan"
   packages = [
     ".",
+    "applayer/fragmentation",
     "applayer/multicastsetup",
     "backend",
     "band",
+    "gps",
   ]
   pruneopts = "NUT"
-  revision = "f6d00de57c41bb2c1a389635d78d52bead3e1fe2"
+  revision = "4ae744db6289399c30bc2795d99f68b8d51df4df"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -705,8 +707,10 @@
     "github.com/brocaar/loraserver/api/gw",
     "github.com/brocaar/loraserver/api/ns",
     "github.com/brocaar/lorawan",
+    "github.com/brocaar/lorawan/applayer/fragmentation",
     "github.com/brocaar/lorawan/applayer/multicastsetup",
     "github.com/brocaar/lorawan/backend",
+    "github.com/brocaar/lorawan/gps",
     "github.com/dgrijalva/jwt-go",
     "github.com/eclipse/paho.mqtt.golang",
     "github.com/elazarl/go-bindata-assetfs",

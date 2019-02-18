@@ -50,7 +50,7 @@ func HandleRemoteMulticastSetupCommand(db sqlx.Ext, devEUI lorawan.EUI64, b []by
 	var cmd multicastsetup.Command
 
 	if err := cmd.UnmarshalBinary(true, b); err != nil {
-		errors.Wrap(err, "unmarshal command error")
+		return errors.Wrap(err, "unmarshal command error")
 	}
 
 	switch cmd.CID {
