@@ -80,6 +80,14 @@ func HandleRemoteMulticastSetupCommand(db sqlx.Ext, devEUI lorawan.EUI64, b []by
 		if err := handleMcGroupSetupAns(db, devEUI, pl); err != nil {
 			return errors.Wrap(err, "handle McGroupSetupAns error")
 		}
+	case multicastsetup.McGroupDeleteAns:
+		pl, ok := cmd.Payload.(*multicastsetup.McGroupDeleteAnsPayload)
+		if !ok {
+			return fmt.Errorf("expected *multicastsetup.McGroupDeleteAnsPayload, got: %T", cmd.Payload)
+		}
+		if err := handleMcGroupDeleteAns(db, devEUI, pl); err != nil {
+			return errors.Wrap(err, "handle McGroupDeleteAns error")
+		}
 	case multicastsetup.McClassCSessionAns:
 		pl, ok := cmd.Payload.(*multicastsetup.McClassCSessionAnsPayload)
 		if !ok {
@@ -104,6 +112,30 @@ func handleMcGroupSetupAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetup
 
 	if pl.McGroupIDHeader.IDError {
 		return fmt.Errorf("IDError for McGroupID: %d", pl.McGroupIDHeader.McGroupID)
+	}
+
+	rms, err := storage.GetRemoteMulticastSetupByGroupID(db, devEUI, int(pl.McGroupIDHeader.McGroupID), true)
+	if err != nil {
+		return errors.Wrap(err, "get remote multicast-setup by group id error")
+	}
+
+	rms.StateProvisioned = true
+	if err := storage.UpdateRemoteMulticastSetup(db, &rms); err != nil {
+		return errors.Wrap(err, "update remote multicast-setup error")
+	}
+
+	return nil
+}
+
+func handleMcGroupDeleteAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetup.McGroupDeleteAnsPayload) error {
+	log.WithFields(log.Fields{
+		"dev_eui":            devEUI,
+		"mc_group_id":        pl.McGroupIDHeader.McGroupID,
+		"mc_group_undefined": pl.McGroupIDHeader.McGroupUndefined,
+	}).Info("McGroupDeleteAns received")
+
+	if pl.McGroupIDHeader.McGroupUndefined {
+		return fmt.Errorf("McGroupUndefined for McGroupID: %d", pl.McGroupIDHeader.McGroupID)
 	}
 
 	rms, err := storage.GetRemoteMulticastSetupByGroupID(db, devEUI, int(pl.McGroupIDHeader.McGroupID), true)
@@ -204,7 +236,7 @@ func syncRemoteMulticastSetupItem(db sqlx.Ext, item storage.RemoteMulticastSetup
 	log.WithFields(log.Fields{
 		"dev_eui":     item.DevEUI,
 		"mc_group_id": item.McGroupID,
-	}).Infof("%s scheduled", cmd.CID)
+	}).Infof("%s enqueued", cmd.CID)
 
 	item.RetryCount++
 	item.RetryAfter = time.Now().Add(syncInterval)
@@ -261,7 +293,7 @@ func syncRemoteMulticastClassCSessionItem(db sqlx.Ext, item storage.RemoteMultic
 	log.WithFields(log.Fields{
 		"dev_eui":     item.DevEUI,
 		"mc_group_id": item.McGroupID,
-	}).Infof("%s scheduled", cmd.CID)
+	}).Infof("%s enqueued", cmd.CID)
 
 	item.RetryCount++
 	item.RetryAfter = time.Now().Add(syncInterval)

@@ -204,6 +204,59 @@ func (ts *MulticastSetupTestSuite) TestMcGroupSetupAns() {
 	})
 }
 
+func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
+	assert := require.New(ts.T())
+
+	rms := storage.RemoteMulticastSetup{
+		DevEUI:         ts.Device.DevEUI,
+		McGroupID:      1,
+		McAddr:         lorawan.DevAddr{1, 2, 3, 4},
+		McKeyEncrypted: lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8},
+		MinMcFCnt:      10,
+		MaxMcFCnt:      20,
+		State:          storage.RemoteMulticastSetupDelete,
+	}
+	copy(rms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &rms))
+
+	ts.T().Run("Error", func(t *testing.T) {
+		assert := require.New(t)
+
+		cmd := multicastsetup.Command{
+			CID: multicastsetup.McGroupDeleteAns,
+			Payload: &multicastsetup.McGroupDeleteAnsPayload{
+				McGroupIDHeader: multicastsetup.McGroupDeleteAnsPayloadMcGroupIDHeader{
+					McGroupUndefined: true,
+					McGroupID:        1,
+				},
+			},
+		}
+		b, err := cmd.MarshalBinary()
+		assert.NoError(err)
+		assert.Equal("handle McGroupDeleteAns error: McGroupUndefined for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+	})
+
+	ts.T().Run("OK", func(t *testing.T) {
+		assert := require.New(t)
+
+		cmd := multicastsetup.Command{
+			CID: multicastsetup.McGroupDeleteAns,
+			Payload: &multicastsetup.McGroupDeleteAnsPayload{
+				McGroupIDHeader: multicastsetup.McGroupDeleteAnsPayloadMcGroupIDHeader{
+					McGroupID: 1,
+				},
+			},
+		}
+		b, err := cmd.MarshalBinary()
+		assert.NoError(err)
+		assert.NoError(HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b))
+
+		rms, err := storage.GetRemoteMulticastSetupByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
+		assert.NoError(err)
+		assert.True(rms.StateProvisioned)
+	})
+}
+
 func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastDeleteReq() {
 	assert := require.New(ts.T())
 
