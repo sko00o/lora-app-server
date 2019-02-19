@@ -6,6 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/brocaar/lora-app-server/internal/downlink"
 	"github.com/brocaar/lorawan"
@@ -40,6 +41,13 @@ func handleAppTimeReq(db sqlx.Ext, devEUI lorawan.EUI64, timeSinceGPSEpoch time.
 	deviceGPSTime := int64(pl.DeviceTime)
 	networkGPSTime := int64((timeSinceGPSEpoch / time.Second) % (1 << 32))
 
+	log.WithFields(log.Fields{
+		"dev_eui":      devEUI,
+		"device_time":  pl.DeviceTime,
+		"ans_required": pl.Param.AnsRequired,
+		"token_req":    pl.Param.TokenReq,
+	}).Info("AppTimeReq received")
+
 	ans := clocksync.Command{
 		CID: clocksync.AppTimeAns,
 		Payload: &clocksync.AppTimeAnsPayload{
@@ -58,6 +66,12 @@ func handleAppTimeReq(db sqlx.Ext, devEUI lorawan.EUI64, timeSinceGPSEpoch time.
 	if err != nil {
 		return errors.Wrap(err, "enqueue downlink payload error")
 	}
+
+	log.WithFields(log.Fields{
+		"dev_eui":         devEUI,
+		"time_correction": int32(networkGPSTime - deviceGPSTime),
+		"token_ans":       pl.Param.TokenReq,
+	}).Info("AppTimeAns scheduled")
 
 	return nil
 }
