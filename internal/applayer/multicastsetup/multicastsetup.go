@@ -16,6 +16,24 @@ import (
 	"github.com/brocaar/lorawan/gps"
 )
 
+var (
+	syncInterval  time.Duration
+	syncRetries   int
+	syncBatchSize int
+)
+
+// Setup configures the package.
+func Setup(conf config.Config) error {
+	syncInterval = conf.ApplicationServer.RemoteMulticastSetup.SyncInterval
+	syncBatchSize = conf.ApplicationServer.RemoteMulticastSetup.SyncBatchSize
+	syncRetries = conf.ApplicationServer.RemoteMulticastSetup.SyncRetries
+
+	go SyncRemoteMulticastSetupLoop()
+	go SyncRemoteMulticastClassCSessionLoop()
+
+	return nil
+}
+
 // SyncRemoteMulticastSetupLoop syncs the multicast setup with the devices.
 func SyncRemoteMulticastSetupLoop() {
 	for {
@@ -26,7 +44,7 @@ func SyncRemoteMulticastSetupLoop() {
 		if err != nil {
 			log.WithError(err).Error("sync remote multicast setup error")
 		}
-		time.Sleep(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
+		time.Sleep(syncInterval)
 	}
 }
 
@@ -41,7 +59,7 @@ func SyncRemoteMulticastClassCSessionLoop() {
 		if err != nil {
 			log.WithError(err).Error("sync remote multicast class-c session error")
 		}
-		time.Sleep(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
+		time.Sleep(syncInterval)
 	}
 }
 
@@ -78,6 +96,12 @@ func HandleRemoteMulticastSetupCommand(db sqlx.Ext, devEUI lorawan.EUI64, b []by
 }
 
 func handleMcGroupSetupAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetup.McGroupSetupAnsPayload) error {
+	log.WithFields(log.Fields{
+		"dev_eui":     devEUI,
+		"id_error":    pl.McGroupIDHeader.IDError,
+		"mc_group_id": pl.McGroupIDHeader.McGroupID,
+	}).Info("McGroupSetupAns received")
+
 	if pl.McGroupIDHeader.IDError {
 		return fmt.Errorf("IDError for McGroupID: %d", pl.McGroupIDHeader.McGroupID)
 	}
@@ -96,6 +120,15 @@ func handleMcGroupSetupAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetup
 }
 
 func handleMcClassCSessionAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetup.McClassCSessionAnsPayload) error {
+	log.WithFields(log.Fields{
+		"dev_eui":            devEUI,
+		"time_to_start":      pl.TimeToStart,
+		"mc_group_undefined": pl.StatusAndMcGroupID.McGroupUndefined,
+		"freq_error":         pl.StatusAndMcGroupID.FreqError,
+		"dr_error":           pl.StatusAndMcGroupID.DRError,
+		"mc_group_id":        pl.StatusAndMcGroupID.McGroupID,
+	}).Info("McClassCSessionAns received")
+
 	if pl.StatusAndMcGroupID.DRError || pl.StatusAndMcGroupID.FreqError || pl.StatusAndMcGroupID.McGroupUndefined {
 		return fmt.Errorf("DRError: %t, FreqError: %t, McGroupUndefined: %t for McGroupID: %d", pl.StatusAndMcGroupID.DRError, pl.StatusAndMcGroupID.FreqError, pl.StatusAndMcGroupID.McGroupUndefined, pl.StatusAndMcGroupID.McGroupID)
 	}
@@ -114,7 +147,7 @@ func handleMcClassCSessionAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastse
 }
 
 func syncRemoteMulticastSetup(db sqlx.Ext) error {
-	items, err := storage.GetPendingRemoteMulticastSetupItems(db, config.C.ApplicationServer.RemoteMulticastSetup.BatchSize, config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries)
+	items, err := storage.GetPendingRemoteMulticastSetupItems(db, syncBatchSize, syncRetries)
 	if err != nil {
 		return err
 	}
@@ -168,8 +201,13 @@ func syncRemoteMulticastSetupItem(db sqlx.Ext, item storage.RemoteMulticastSetup
 		return errors.Wrap(err, "enqueue downlink payload error")
 	}
 
+	log.WithFields(log.Fields{
+		"dev_eui":     item.DevEUI,
+		"mc_group_id": item.McGroupID,
+	}).Infof("%s scheduled", cmd.CID)
+
 	item.RetryCount++
-	item.RetryAfter = time.Now().Add(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
+	item.RetryAfter = time.Now().Add(syncInterval)
 
 	err = storage.UpdateRemoteMulticastSetup(db, &item)
 	if err != nil {
@@ -180,7 +218,7 @@ func syncRemoteMulticastSetupItem(db sqlx.Ext, item storage.RemoteMulticastSetup
 }
 
 func syncRemoteMulticastClassCSession(db sqlx.Ext) error {
-	items, err := storage.GetPendingRemoteMulticastClassCSessions(db, config.C.ApplicationServer.RemoteMulticastSetup.BatchSize, config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries)
+	items, err := storage.GetPendingRemoteMulticastClassCSessions(db, syncBatchSize, syncRetries)
 	if err != nil {
 		return err
 	}
@@ -220,8 +258,13 @@ func syncRemoteMulticastClassCSessionItem(db sqlx.Ext, item storage.RemoteMultic
 		return errors.Wrap(err, "enqueue downlink payload error")
 	}
 
+	log.WithFields(log.Fields{
+		"dev_eui":     item.DevEUI,
+		"mc_group_id": item.McGroupID,
+	}).Infof("%s scheduled", cmd.CID)
+
 	item.RetryCount++
-	item.RetryAfter = time.Now().Add(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
+	item.RetryAfter = time.Now().Add(syncInterval)
 
 	err = storage.UpdateRemoteMulticastClassCSession(db, &item)
 	if err != nil {

@@ -59,10 +59,9 @@ type Config struct {
 		} `mapstructure:"external_api"`
 
 		RemoteMulticastSetup struct {
-			SyncInterval time.Duration `mapstructure:"sync_interval"`
-			SyncRetries  int           `mapstructure:"sync_retries"`
-			BatchSize    int           `mapstructure:"batch_size"`
-			FPort        uint8         `mapstructure:"f_port"`
+			SyncInterval  time.Duration `mapstructure:"sync_interval"`
+			SyncRetries   int           `mapstructure:"sync_retries"`
+			SyncBatchSize int           `mapstructure:"sync_batch_size"`
 		} `mapstructure:"remote_multicast_setup"`
 
 		Branding struct {

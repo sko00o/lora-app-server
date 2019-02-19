@@ -34,7 +34,7 @@ func (ts *FragmentationSessionTestSuite) SetupSuite() {
 
 	config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval = time.Minute
 	config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries = 5
-	config.C.ApplicationServer.RemoteMulticastSetup.BatchSize = 10
+	config.C.ApplicationServer.RemoteMulticastSetup.SyncBatchSize = 10
 }
 
 func (ts *FragmentationSessionTestSuite) SetupTest() {

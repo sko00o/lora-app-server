@@ -57,6 +57,10 @@ func init() {
 	viper.SetDefault("application_server.integration.mqtt.location_topic_template", "application/{{ .ApplicationID }}/device/{{ .DevEUI }}/location")
 	viper.SetDefault("application_server.integration.mqtt.clean_session", true)
 
+	viper.SetDefault("application_server.remote_multicast_setup.sync_interval", time.Second)
+	viper.SetDefault("application_server.remote_multicast_setup.sync_retries", 3)
+	viper.SetDefault("application_server.remote_multicast_setup.sync_batch_size", 100)
+
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
 }

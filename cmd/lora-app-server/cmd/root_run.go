@@ -69,7 +69,7 @@ func run(cmd *cobra.Command, args []string) error {
 		handleDataDownPayloads,
 		startApplicationServerAPI,
 		startGatewayPing,
-		startSyncRemoteMulticastSetupLoop,
+		setupMulticastSetup,
 		startJoinServerAPI,
 		startClientAPI(ctx),
 	}
@@ -217,8 +217,10 @@ func startGatewayPing() error {
 	return nil
 }
 
-func startSyncRemoteMulticastSetupLoop() error {
-	go multicastsetup.SyncRemoteMulticastSetupLoop()
+func setupMulticastSetup() error {
+	if err := multicastsetup.Setup(config.C); err != nil {
+		return errors.Wrap(err, "mulitcastsetup setup error")
+	}
 	return nil
 }
 

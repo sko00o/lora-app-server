@@ -34,9 +34,9 @@ type MulticastSetupTestSuite struct {
 func (ts *MulticastSetupTestSuite) SetupSuite() {
 	ts.DatabaseTestSuiteBase.SetupSuite()
 
-	config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval = time.Minute
-	config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries = 5
-	config.C.ApplicationServer.RemoteMulticastSetup.BatchSize = 10
+	syncInterval = time.Minute
+	syncRetries = 5
+	syncBatchSize = 10
 }
 
 func (ts *MulticastSetupTestSuite) SetupTest() {

@@ -61,7 +61,7 @@ func HandleRemoteFragmentationSessionCommand(db sqlx.Ext, devEUI lorawan.EUI64, 
 }
 
 func syncRemoteFragmentationSessions(db sqlx.Ext) error {
-	items, err := storage.GetPendingRemoteFragmentationSessions(db, config.C.ApplicationServer.RemoteMulticastSetup.BatchSize, config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries)
+	items, err := storage.GetPendingRemoteFragmentationSessions(db, config.C.ApplicationServer.RemoteMulticastSetup.SyncBatchSize, config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries)
 	if err != nil {
 		return err
 	}
