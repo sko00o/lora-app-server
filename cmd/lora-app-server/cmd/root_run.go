@@ -34,6 +34,7 @@ import (
 	pb "github.com/brocaar/lora-app-server/api"
 	"github.com/brocaar/lora-app-server/internal/api"
 	"github.com/brocaar/lora-app-server/internal/api/auth"
+	"github.com/brocaar/lora-app-server/internal/applayer/fragmentation"
 	"github.com/brocaar/lora-app-server/internal/applayer/multicastsetup"
 	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
@@ -70,6 +71,7 @@ func run(cmd *cobra.Command, args []string) error {
 		startApplicationServerAPI,
 		startGatewayPing,
 		setupMulticastSetup,
+		setupFragmentation,
 		startJoinServerAPI,
 		startClientAPI(ctx),
 	}
@@ -219,7 +221,14 @@ func startGatewayPing() error {
 
 func setupMulticastSetup() error {
 	if err := multicastsetup.Setup(config.C); err != nil {
-		return errors.Wrap(err, "mulitcastsetup setup error")
+		return errors.Wrap(err, "multicastsetup setup error")
+	}
+	return nil
+}
+
+func setupFragmentation() error {
+	if err := fragmentation.Setup(config.C); err != nil {
+		return errors.Wrap(err, "fragmentation setup error")
 	}
 	return nil
 }

@@ -15,6 +15,23 @@ import (
 	"github.com/brocaar/lorawan/applayer/fragmentation"
 )
 
+var (
+	syncInterval  time.Duration
+	syncRetries   int
+	syncBatchSize int
+)
+
+// Setup configures the package.
+func Setup(conf config.Config) error {
+	syncInterval = conf.ApplicationServer.FragmentationSession.SyncInterval
+	syncBatchSize = conf.ApplicationServer.FragmentationSession.SyncBatchSize
+	syncRetries = conf.ApplicationServer.FragmentationSession.SyncRetries
+
+	go SyncRemoteFragmentationSessionsLoop()
+
+	return nil
+}
+
 // SyncRemoteFragmentationSessions syncs the fragmentation sessions with the devices.
 func SyncRemoteFragmentationSessionsLoop() {
 	for {
@@ -127,6 +144,11 @@ func syncRemoteFragmentationSession(db sqlx.Ext, item storage.RemoteFragmentatio
 		return errors.Wrap(err, "enqueue downlink payload error")
 	}
 
+	log.WithFields(log.Fields{
+		"dev_eui":    item.DevEUI,
+		"frag_index": item.FragIndex,
+	}).Infof("%s enqueued", cmd.CID)
+
 	item.RetryCount++
 	item.RetryAfter = time.Now().Add(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
 
@@ -139,6 +161,15 @@ func syncRemoteFragmentationSession(db sqlx.Ext, item storage.RemoteFragmentatio
 }
 
 func handleFragSessionSetupAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *fragmentation.FragSessionSetupAnsPayload) error {
+	log.WithFields(log.Fields{
+		"dev_eui":                          devEUI,
+		"frag_index":                       pl.StatusBitMask.FragIndex,
+		"wrong_descriptor":                 pl.StatusBitMask.WrongDescriptor,
+		"frag_session_index_not_supported": pl.StatusBitMask.FragSessionIndexNotSupported,
+		"not_enough_memory":                pl.StatusBitMask.NotEnoughMemory,
+		"encoding_unsupported":             pl.StatusBitMask.EncodingUnsupported,
+	}).Info("FragSessionSetupAns received")
+
 	if pl.StatusBitMask.WrongDescriptor || pl.StatusBitMask.FragSessionIndexNotSupported || pl.StatusBitMask.NotEnoughMemory || pl.StatusBitMask.EncodingUnsupported {
 		return fmt.Errorf("WrongDescriptor: %t, FragSessionIndexNotSupported: %t, NotEnoughMemory: %t, EncodingUnsupported: %t", pl.StatusBitMask.WrongDescriptor, pl.StatusBitMask.FragSessionIndexNotSupported, pl.StatusBitMask.NotEnoughMemory, pl.StatusBitMask.EncodingUnsupported)
 	}
@@ -157,6 +188,12 @@ func handleFragSessionSetupAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *fragmentat
 }
 
 func handleFragSessionDeleteAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *fragmentation.FragSessionDeleteAnsPayload) error {
+	log.WithFields(log.Fields{
+		"dev_eui":                devEUI,
+		"frag_index":             pl.Status.FragIndex,
+		"session_does_not_exist": pl.Status.SessionDoesNotExist,
+	}).Info("FragSessionDeleteAns received")
+
 	if pl.Status.SessionDoesNotExist {
 		return fmt.Errorf("FragIndex %d does not exist", pl.Status.FragIndex)
 	}

@@ -64,6 +64,12 @@ type Config struct {
 			SyncBatchSize int           `mapstructure:"sync_batch_size"`
 		} `mapstructure:"remote_multicast_setup"`
 
+		FragmentationSession struct {
+			SyncInterval  time.Duration `mapstructure:"sync_interval"`
+			SyncRetries   int           `mapstructure:"sync_retries"`
+			SyncBatchSize int           `mapstructure:"sync_batch_size"`
+		} `mapstructure:"fragmentation_session"`
+
 		Branding struct {
 			Header       string
 			Footer       string

@@ -71,7 +71,7 @@ func handleAppTimeReq(db sqlx.Ext, devEUI lorawan.EUI64, timeSinceGPSEpoch time.
 		"dev_eui":         devEUI,
 		"time_correction": int32(networkGPSTime - deviceGPSTime),
 		"token_ans":       pl.Param.TokenReq,
-	}).Info("AppTimeAns scheduled")
+	}).Info("AppTimeAns enqueued")
 
 	return nil
 }
