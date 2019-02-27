@@ -148,6 +148,17 @@ func handleMcGroupDeleteAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastsetu
 		return errors.Wrap(err, "update remote multicast-setup error")
 	}
 
+	if err := storage.RemoveDeviceFromMulticastGroup(db, rms.MulticastGroupID, devEUI); err != nil {
+		if err == storage.ErrDoesNotExist {
+			log.WithFields(log.Fields{
+				"dev_eui":            devEUI,
+				"multicast_group_id": rms.MulticastGroupID,
+			}).Info("applayer/multicastsetup: removing device from multicast group, but device does not exist")
+		} else {
+			return errors.Wrap(err, "remove device from multicast group error")
+		}
+	}
+
 	return nil
 }
 
@@ -173,6 +184,17 @@ func handleMcClassCSessionAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *multicastse
 	sess.StateProvisioned = true
 	if err := storage.UpdateRemoteMulticastClassCSession(db, &sess); err != nil {
 		return errors.Wrap(err, "update remote multicast class-c session error")
+	}
+
+	if err := storage.AddDeviceToMulticastGroup(db, sess.MulticastGroupID, devEUI); err != nil {
+		if err == storage.ErrAlreadyExists {
+			log.WithFields(log.Fields{
+				"dev_eui":            devEUI,
+				"multicast_group_id": sess.MulticastGroupID,
+			}).Warning("applayer/multicastsetup: adding device to multicast group, but device was already added")
+		} else {
+			return errors.Wrap(err, "add device to multicast group error")
+		}
 	}
 
 	return nil

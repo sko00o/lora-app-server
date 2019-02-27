@@ -148,7 +148,6 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastSetupReq() {
 			MaxMcFCnt:      ms.MaxMcFCnt,
 		},
 	}, cmd)
-
 }
 
 func (ts *MulticastSetupTestSuite) TestMcGroupSetupAns() {
@@ -218,6 +217,7 @@ func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
 	}
 	copy(rms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &rms))
+	assert.NoError(storage.AddDeviceToMulticastGroup(ts.Tx(), rms.MulticastGroupID, ts.Device.DevEUI))
 
 	ts.T().Run("Error", func(t *testing.T) {
 		assert := require.New(t)
@@ -234,6 +234,10 @@ func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
 		assert.Equal("handle McGroupDeleteAns error: McGroupUndefined for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+
+		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), rms.MulticastGroupID, 10, 0)
+		assert.NoError(err)
+		assert.Len(devices, 1)
 	})
 
 	ts.T().Run("OK", func(t *testing.T) {
@@ -254,6 +258,10 @@ func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
 		rms, err := storage.GetRemoteMulticastSetupByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(rms.StateProvisioned)
+
+		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), rms.MulticastGroupID, 10, 0)
+		assert.NoError(err)
+		assert.Len(devices, 0)
 	})
 }
 
@@ -381,6 +389,10 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionAns() {
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
 		assert.Equal("handle McClassCSessionAns error: DRError: false, FreqError: false, McGroupUndefined: true for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+
+		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), sess.MulticastGroupID, 10, 0)
+		assert.NoError(err)
+		assert.Len(devices, 0)
 	})
 
 	ts.T().Run("OK", func(t *testing.T) {
@@ -403,6 +415,10 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionAns() {
 		sess, err := storage.GetRemoteMulticastClassCSessionByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(sess.StateProvisioned)
+
+		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), sess.MulticastGroupID, 10, 0)
+		assert.NoError(err)
+		assert.Len(devices, 1)
 	})
 }
 
