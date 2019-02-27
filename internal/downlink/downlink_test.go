@@ -12,7 +12,7 @@ import (
 	"github.com/brocaar/lora-app-server/internal/codec"
 	"github.com/brocaar/lora-app-server/internal/common"
 	"github.com/brocaar/lora-app-server/internal/config"
-	"github.com/brocaar/lora-app-server/internal/handler"
+	"github.com/brocaar/lora-app-server/internal/integration"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/loraserver/api/ns"
@@ -93,7 +93,7 @@ func TestHandleDownlinkQueueItem(t *testing.T) {
 		Convey("Given a set of tests", func() {
 			tests := []struct {
 				Name                 string
-				Payload              handler.DataDownPayload
+				Payload              integration.DataDownPayload
 				PayloadCodec         codec.Type
 				PayloadEncoderScript string
 
@@ -102,7 +102,7 @@ func TestHandleDownlinkQueueItem(t *testing.T) {
 			}{
 				{
 					Name: "unconfirmed payload",
-					Payload: handler.DataDownPayload{
+					Payload: integration.DataDownPayload{
 						ApplicationID: app.ID,
 						DevEUI:        device.DevEUI,
 						Confirmed:     false,
@@ -122,7 +122,7 @@ func TestHandleDownlinkQueueItem(t *testing.T) {
 				},
 				{
 					Name: "confirmed payload",
-					Payload: handler.DataDownPayload{
+					Payload: integration.DataDownPayload{
 						ApplicationID: app.ID,
 						DevEUI:        device.DevEUI,
 						Confirmed:     true,
@@ -142,7 +142,7 @@ func TestHandleDownlinkQueueItem(t *testing.T) {
 				},
 				{
 					Name: "invalid application id",
-					Payload: handler.DataDownPayload{
+					Payload: integration.DataDownPayload{
 						ApplicationID: app.ID + 1,
 						DevEUI:        device.DevEUI,
 						Confirmed:     true,
@@ -164,7 +164,7 @@ func TestHandleDownlinkQueueItem(t *testing.T) {
 							];
 						}
 					`,
-					Payload: handler.DataDownPayload{
+					Payload: integration.DataDownPayload{
 						ApplicationID: app.ID,
 						DevEUI:        device.DevEUI,
 						FPort:         2,

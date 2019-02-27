@@ -99,20 +99,20 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			RetryCount:       1,
 		}
 		assert.NoError(CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
-		sess.CreatedAt = sess.CreatedAt.UTC()
-		sess.UpdatedAt = sess.UpdatedAt.UTC()
-		sess.RetryAfter = sess.RetryAfter.UTC()
-		sess.SessionTime = sess.SessionTime.UTC()
+		sess.CreatedAt = sess.CreatedAt.UTC().Round(time.Millisecond)
+		sess.UpdatedAt = sess.UpdatedAt.UTC().Round(time.Millisecond)
+		sess.RetryAfter = sess.RetryAfter.UTC().Round(time.Millisecond)
+		sess.SessionTime = sess.SessionTime.UTC().Round(time.Millisecond)
 
 		t.Run("Get", func(t *testing.T) {
 			assert := require.New(t)
 
 			sessGet, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
 			assert.NoError(err)
-			sessGet.CreatedAt = sessGet.CreatedAt.UTC()
-			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC()
-			sessGet.RetryAfter = sessGet.RetryAfter.UTC()
-			sessGet.SessionTime = sessGet.SessionTime.UTC()
+			sessGet.CreatedAt = sessGet.CreatedAt.UTC().Round(time.Millisecond)
+			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC().Round(time.Millisecond)
+			sessGet.RetryAfter = sessGet.RetryAfter.UTC().Round(time.Millisecond)
+			sessGet.SessionTime = sessGet.SessionTime.UTC().Round(time.Millisecond)
 			assert.Equal(sess, sessGet)
 		})
 
@@ -158,14 +158,14 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			sess.StateProvisioned = true
 			sess.RetryAfter = now
 			assert.NoError(UpdateRemoteMulticastClassCSession(ts.Tx(), &sess))
-			sess.UpdatedAt = sess.UpdatedAt.UTC()
+			sess.UpdatedAt = sess.UpdatedAt.UTC().Round(time.Millisecond)
 
 			sessGet, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
 			assert.NoError(err)
-			sessGet.CreatedAt = sessGet.CreatedAt.UTC()
-			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC()
-			sessGet.RetryAfter = sessGet.RetryAfter.UTC()
-			sessGet.SessionTime = sessGet.SessionTime.UTC()
+			sessGet.CreatedAt = sessGet.CreatedAt.UTC().Round(time.Millisecond)
+			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC().Round(time.Millisecond)
+			sessGet.RetryAfter = sessGet.RetryAfter.UTC().Round(time.Millisecond)
+			sessGet.SessionTime = sessGet.SessionTime.UTC().Round(time.Millisecond)
 			assert.Equal(sess, sessGet)
 
 			t.Run("GetPending", func(t *testing.T) {
