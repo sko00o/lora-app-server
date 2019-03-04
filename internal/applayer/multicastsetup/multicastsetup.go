@@ -37,7 +37,7 @@ func Setup(conf config.Config) error {
 // SyncRemoteMulticastSetupLoop syncs the multicast setup with the devices.
 func SyncRemoteMulticastSetupLoop() {
 	for {
-		err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
+		err := storage.Transaction(func(tx sqlx.Ext) error {
 			return syncRemoteMulticastSetup(tx)
 		})
 
@@ -52,7 +52,7 @@ func SyncRemoteMulticastSetupLoop() {
 // with the devices.
 func SyncRemoteMulticastClassCSessionLoop() {
 	for {
-		err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
+		err := storage.Transaction(func(tx sqlx.Ext) error {
 			return syncRemoteMulticastClassCSession(tx)
 		})
 

@@ -8,7 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/brocaar/lora-app-server/internal/config"
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
+	nsmock "github.com/brocaar/lora-app-server/internal/backend/networkserver/mock"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/lorawan"
@@ -17,9 +18,9 @@ import (
 
 type FragmentationSessionTestSuite struct {
 	suite.Suite
-	test.DatabaseTestSuiteBase
+	tx *storage.TxLogger
 
-	NSClient         *test.NetworkServerClient
+	NSClient         *nsmock.Client
 	NetworkServer    storage.NetworkServer
 	Organization     storage.Organization
 	ServiceProfile   storage.ServiceProfile
@@ -30,38 +31,49 @@ type FragmentationSessionTestSuite struct {
 }
 
 func (ts *FragmentationSessionTestSuite) SetupSuite() {
-	ts.DatabaseTestSuiteBase.SetupSuite()
+	assert := require.New(ts.T())
 
-	config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval = time.Minute
-	config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries = 5
-	config.C.ApplicationServer.RemoteMulticastSetup.SyncBatchSize = 10
+	syncInterval = time.Minute
+	syncRetries = 5
+	syncBatchSize = 10
+
+	conf := test.GetConfig()
+	assert.NoError(storage.Setup(conf))
+	test.MustResetDB(storage.DB().DB)
+}
+
+func (ts *FragmentationSessionTestSuite) TearDownTest() {
+	assert := require.New(ts.T())
+	assert.NoError(ts.tx.Rollback())
 }
 
 func (ts *FragmentationSessionTestSuite) SetupTest() {
-	ts.DatabaseTestSuiteBase.SetupTest()
-
 	assert := require.New(ts.T())
+	var err error
 
-	ts.NSClient = test.NewNetworkServerClient()
-	config.C.NetworkServer.Pool = test.NewNetworkServerPool(ts.NSClient)
+	ts.tx, err = storage.DB().Beginx()
+	assert.NoError(err)
+
+	ts.NSClient = nsmock.NewClient()
+	networkserver.SetPool(nsmock.NewPool(ts.NSClient))
 
 	ts.NetworkServer = storage.NetworkServer{
 		Name:   "test",
 		Server: "test:1234",
 	}
-	assert.NoError(storage.CreateNetworkServer(ts.Tx(), &ts.NetworkServer))
+	assert.NoError(storage.CreateNetworkServer(ts.tx, &ts.NetworkServer))
 
 	ts.Organization = storage.Organization{
 		Name: "test-org",
 	}
-	assert.NoError(storage.CreateOrganization(ts.Tx(), &ts.Organization))
+	assert.NoError(storage.CreateOrganization(ts.tx, &ts.Organization))
 
 	ts.ServiceProfile = storage.ServiceProfile{
 		Name:            "test-sp",
 		OrganizationID:  ts.Organization.ID,
 		NetworkServerID: ts.NetworkServer.ID,
 	}
-	assert.NoError(storage.CreateServiceProfile(ts.Tx(), &ts.ServiceProfile))
+	assert.NoError(storage.CreateServiceProfile(ts.tx, &ts.ServiceProfile))
 	var spID uuid.UUID
 	copy(spID[:], ts.ServiceProfile.ServiceProfile.Id)
 
@@ -70,14 +82,14 @@ func (ts *FragmentationSessionTestSuite) SetupTest() {
 		OrganizationID:   ts.Organization.ID,
 		ServiceProfileID: spID,
 	}
-	assert.NoError(storage.CreateApplication(ts.Tx(), &ts.Application))
+	assert.NoError(storage.CreateApplication(ts.tx, &ts.Application))
 
 	ts.DeviceProfile = storage.DeviceProfile{
 		Name:            "test-dp",
 		OrganizationID:  ts.Organization.ID,
 		NetworkServerID: ts.NetworkServer.ID,
 	}
-	assert.NoError(storage.CreateDeviceProfile(ts.Tx(), &ts.DeviceProfile))
+	assert.NoError(storage.CreateDeviceProfile(ts.tx, &ts.DeviceProfile))
 	var dpID uuid.UUID
 	copy(dpID[:], ts.DeviceProfile.DeviceProfile.Id)
 
@@ -88,12 +100,12 @@ func (ts *FragmentationSessionTestSuite) SetupTest() {
 		Name:            "test-device",
 		Description:     "test device",
 	}
-	assert.NoError(storage.CreateDevice(ts.Tx(), &ts.Device))
+	assert.NoError(storage.CreateDevice(ts.tx, &ts.Device))
 
 	ts.DeviceActivation = storage.DeviceActivation{
 		DevEUI: ts.Device.DevEUI,
 	}
-	assert.NoError(storage.CreateDeviceActivation(ts.Tx(), &ts.DeviceActivation))
+	assert.NoError(storage.CreateDeviceActivation(ts.tx, &ts.DeviceActivation))
 }
 
 func (ts *FragmentationSessionTestSuite) TestSyncFragSessionSetupReq() {
@@ -109,10 +121,10 @@ func (ts *FragmentationSessionTestSuite) TestSyncFragSessionSetupReq() {
 		Descriptor:          [4]byte{1, 2, 3, 4},
 		State:               storage.RemoteMulticastSetupSetup,
 	}
-	assert.NoError(storage.CreateRemoteFragmentationSession(ts.Tx(), &rfs))
-	assert.NoError(syncRemoteFragmentationSessions(ts.Tx()))
+	assert.NoError(storage.CreateRemoteFragmentationSession(ts.tx, &rfs))
+	assert.NoError(syncRemoteFragmentationSessions(ts.tx))
 
-	rfs, err := storage.GetRemoteFragmentationSession(ts.Tx(), ts.Device.DevEUI, 1, false)
+	rfs, err := storage.GetRemoteFragmentationSession(ts.tx, ts.Device.DevEUI, 1, false)
 	assert.NoError(err)
 	assert.Equal(1, rfs.RetryCount)
 	assert.True(rfs.RetryAfter.After(time.Now()))
@@ -158,10 +170,10 @@ func (ts *FragmentationSessionTestSuite) TestSyncFragSessionDeleteReq() {
 		Descriptor:          [4]byte{1, 2, 3, 4},
 		State:               storage.RemoteMulticastSetupDelete,
 	}
-	assert.NoError(storage.CreateRemoteFragmentationSession(ts.Tx(), &rfs))
-	assert.NoError(syncRemoteFragmentationSessions(ts.Tx()))
+	assert.NoError(storage.CreateRemoteFragmentationSession(ts.tx, &rfs))
+	assert.NoError(syncRemoteFragmentationSessions(ts.tx))
 
-	rfs, err := storage.GetRemoteFragmentationSession(ts.Tx(), ts.Device.DevEUI, 1, false)
+	rfs, err := storage.GetRemoteFragmentationSession(ts.tx, ts.Device.DevEUI, 1, false)
 	assert.NoError(err)
 	assert.Equal(1, rfs.RetryCount)
 	assert.True(rfs.RetryAfter.After(time.Now()))
@@ -193,7 +205,7 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionSetupAns() {
 		FragIndex: 1,
 		State:     storage.RemoteMulticastSetupSetup,
 	}
-	assert.NoError(storage.CreateRemoteFragmentationSession(ts.Tx(), &rfs))
+	assert.NoError(storage.CreateRemoteFragmentationSession(ts.tx, &rfs))
 
 	ts.T().Run("Error", func(t *testing.T) {
 		assert := require.New(t)
@@ -209,7 +221,7 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionSetupAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.Equal("handle FragSessionSetupAns error: WrongDescriptor: true, FragSessionIndexNotSupported: false, NotEnoughMemory: false, EncodingUnsupported: false", HandleRemoteFragmentationSessionCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+		assert.Equal("handle FragSessionSetupAns error: WrongDescriptor: true, FragSessionIndexNotSupported: false, NotEnoughMemory: false, EncodingUnsupported: false", HandleRemoteFragmentationSessionCommand(ts.tx, ts.Device.DevEUI, b).Error())
 	})
 
 	ts.T().Run("OK", func(t *testing.T) {
@@ -225,9 +237,9 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionSetupAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.NoError(HandleRemoteFragmentationSessionCommand(ts.Tx(), ts.Device.DevEUI, b))
+		assert.NoError(HandleRemoteFragmentationSessionCommand(ts.tx, ts.Device.DevEUI, b))
 
-		rfs, err := storage.GetRemoteFragmentationSession(ts.Tx(), ts.Device.DevEUI, 1, false)
+		rfs, err := storage.GetRemoteFragmentationSession(ts.tx, ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(rfs.StateProvisioned)
 	})
@@ -241,7 +253,7 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionDeleteAns() {
 		FragIndex: 1,
 		State:     storage.RemoteMulticastSetupSetup,
 	}
-	assert.NoError(storage.CreateRemoteFragmentationSession(ts.Tx(), &rfs))
+	assert.NoError(storage.CreateRemoteFragmentationSession(ts.tx, &rfs))
 
 	ts.T().Run("Error", func(t *testing.T) {
 		assert := require.New(t)
@@ -257,7 +269,7 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionDeleteAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.Equal("handle FragSessionDeleteAns error: FragIndex 1 does not exist", HandleRemoteFragmentationSessionCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+		assert.Equal("handle FragSessionDeleteAns error: FragIndex 1 does not exist", HandleRemoteFragmentationSessionCommand(ts.tx, ts.Device.DevEUI, b).Error())
 	})
 
 	ts.T().Run("OK", func(t *testing.T) {
@@ -273,9 +285,9 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionDeleteAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.NoError(HandleRemoteFragmentationSessionCommand(ts.Tx(), ts.Device.DevEUI, b))
+		assert.NoError(HandleRemoteFragmentationSessionCommand(ts.tx, ts.Device.DevEUI, b))
 
-		rfs, err := storage.GetRemoteFragmentationSession(ts.Tx(), ts.Device.DevEUI, 1, false)
+		rfs, err := storage.GetRemoteFragmentationSession(ts.tx, ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(rfs.StateProvisioned)
 	})

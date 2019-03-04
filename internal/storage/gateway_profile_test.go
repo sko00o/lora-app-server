@@ -7,8 +7,8 @@ import (
 	"github.com/gofrs/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	c "github.com/brocaar/lora-app-server/internal/common"
-	"github.com/brocaar/lora-app-server/internal/config"
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver/mock"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/loraserver/api/common"
 	"github.com/brocaar/loraserver/api/ns"
@@ -16,23 +16,20 @@ import (
 
 func TestGatewayProfile(t *testing.T) {
 	conf := test.GetConfig()
-	db, err := c.OpenDatabase(conf.PostgresDSN)
-	if err != nil {
+	if err := Setup(conf); err != nil {
 		t.Fatal(err)
 	}
-
-	config.C.PostgreSQL.DB = db
-	nsClient := test.NewNetworkServerClient()
-	config.C.NetworkServer.Pool = test.NewNetworkServerPool(nsClient)
+	nsClient := mock.NewClient()
+	networkserver.SetPool(mock.NewPool(nsClient))
 
 	Convey("Given a clean database with network-server", t, func() {
-		test.MustResetDB(db)
+		test.MustResetDB(DB().DB)
 
 		n := NetworkServer{
 			Name:   "test-ns",
 			Server: "test-ns:1234",
 		}
-		So(CreateNetworkServer(db, &n), ShouldBeNil)
+		So(CreateNetworkServer(DB(), &n), ShouldBeNil)
 
 		Convey("Then CreateGatewayProfile creates the gateway-profile", func() {
 			gp := GatewayProfile{
@@ -50,7 +47,7 @@ func TestGatewayProfile(t *testing.T) {
 					},
 				},
 			}
-			So(CreateGatewayProfile(db, &gp), ShouldBeNil)
+			So(CreateGatewayProfile(DB(), &gp), ShouldBeNil)
 			gp.CreatedAt = gp.CreatedAt.UTC().Truncate(time.Millisecond)
 			gp.UpdatedAt = gp.UpdatedAt.UTC().Truncate(time.Millisecond)
 			gpID, err := uuid.FromBytes(gp.GatewayProfile.Id)
@@ -66,7 +63,7 @@ func TestGatewayProfile(t *testing.T) {
 					GatewayProfile: &gp.GatewayProfile,
 				}
 
-				gpGet, err := GetGatewayProfile(db, gpID)
+				gpGet, err := GetGatewayProfile(DB(), gpID)
 				So(err, ShouldBeNil)
 				gpGet.CreatedAt = gpGet.CreatedAt.UTC().Truncate(time.Millisecond)
 				gpGet.UpdatedAt = gpGet.UpdatedAt.UTC().Truncate(time.Millisecond)
@@ -89,7 +86,7 @@ func TestGatewayProfile(t *testing.T) {
 					},
 				}
 
-				So(UpdateGatewayProfile(db, &gp), ShouldBeNil)
+				So(UpdateGatewayProfile(DB(), &gp), ShouldBeNil)
 				gp.UpdatedAt = gp.UpdatedAt.UTC().Truncate(time.Millisecond)
 
 				So(nsClient.UpdateGatewayProfileChan, ShouldHaveLength, 1)
@@ -97,19 +94,19 @@ func TestGatewayProfile(t *testing.T) {
 					GatewayProfile: &gp.GatewayProfile,
 				})
 
-				gpGet, err := GetGatewayProfile(db, gpID)
+				gpGet, err := GetGatewayProfile(DB(), gpID)
 				So(err, ShouldBeNil)
 				So(gpGet.Name, ShouldEqual, "updated-gateway-profile")
 			})
 
 			Convey("Then DeleteGatewayProfile deletes the gateway-profile", func() {
-				So(DeleteGatewayProfile(db, gpID), ShouldBeNil)
+				So(DeleteGatewayProfile(DB(), gpID), ShouldBeNil)
 				So(nsClient.DeleteGatewayProfileChan, ShouldHaveLength, 1)
 				So(<-nsClient.DeleteGatewayProfileChan, ShouldResemble, ns.DeleteGatewayProfileRequest{
 					Id: gp.GatewayProfile.Id,
 				})
 
-				_, err := GetGatewayProfile(db, gpID)
+				_, err := GetGatewayProfile(DB(), gpID)
 				So(err, ShouldEqual, ErrDoesNotExist)
 			})
 
@@ -120,7 +117,7 @@ func TestGatewayProfile(t *testing.T) {
 			})
 
 			Convey("Then GetGatewayProfiles returns the gateway profiles", func() {
-				gps, err := GetGatewayProfiles(db, 10, 0)
+				gps, err := GetGatewayProfiles(DB(), 10, 0)
 				So(err, ShouldBeNil)
 				So(gps, ShouldHaveLength, 1)
 				So(gps[0].GatewayProfileID, ShouldEqual, gpID)
@@ -130,13 +127,13 @@ func TestGatewayProfile(t *testing.T) {
 			})
 
 			Convey("Then GetGatewayProfileCountForNetworkServerID returns the number of gateway profiles", func() {
-				count, err := GetGatewayProfileCountForNetworkServerID(db, n.ID)
+				count, err := GetGatewayProfileCountForNetworkServerID(DB(), n.ID)
 				So(err, ShouldBeNil)
 				So(count, ShouldEqual, 1)
 			})
 
 			Convey("Then GetGatewayProfilesForNetworkServerID returns the gateway profiles", func() {
-				gps, err := GetGatewayProfilesForNetworkServerID(db, n.ID, 10, 0)
+				gps, err := GetGatewayProfilesForNetworkServerID(DB(), n.ID, 10, 0)
 				So(err, ShouldBeNil)
 				So(gps, ShouldHaveLength, 1)
 				So(gps[0].GatewayProfileID, ShouldEqual, gpID)

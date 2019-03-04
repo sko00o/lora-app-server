@@ -8,7 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/brocaar/lora-app-server/internal/config"
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
+	nsmock "github.com/brocaar/lora-app-server/internal/backend/networkserver/mock"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/lorawan"
@@ -18,9 +19,9 @@ import (
 
 type ClockSyncTestSuite struct {
 	suite.Suite
-	test.DatabaseTestSuiteBase
+	tx *storage.TxLogger
 
-	NSClient         *test.NetworkServerClient
+	NSClient         *nsmock.Client
 	NetworkServer    storage.NetworkServer
 	Organization     storage.Organization
 	ServiceProfile   storage.ServiceProfile
@@ -30,31 +31,44 @@ type ClockSyncTestSuite struct {
 	DeviceActivation storage.DeviceActivation
 }
 
-func (ts *ClockSyncTestSuite) SetupTest() {
-	ts.DatabaseTestSuiteBase.SetupTest()
+func (ts *ClockSyncTestSuite) SetupSuite() {
+	assert := require.New(ts.T())
+	conf := test.GetConfig()
+	assert.NoError(storage.Setup(conf))
+	test.MustResetDB(storage.DB().DB)
+}
 
+func (ts *ClockSyncTestSuite) TearDownTest() {
+	ts.tx.Rollback()
+}
+
+func (ts *ClockSyncTestSuite) SetupTest() {
 	assert := require.New(ts.T())
 
-	ts.NSClient = test.NewNetworkServerClient()
-	config.C.NetworkServer.Pool = test.NewNetworkServerPool(ts.NSClient)
+	ts.NSClient = nsmock.NewClient()
+	networkserver.SetPool(nsmock.NewPool(ts.NSClient))
+
+	var err error
+	ts.tx, err = storage.DB().Beginx()
+	assert.NoError(err)
 
 	ts.NetworkServer = storage.NetworkServer{
 		Name:   "test",
 		Server: "test:1234",
 	}
-	assert.NoError(storage.CreateNetworkServer(ts.Tx(), &ts.NetworkServer))
+	assert.NoError(storage.CreateNetworkServer(ts.tx, &ts.NetworkServer))
 
 	ts.Organization = storage.Organization{
 		Name: "test-org",
 	}
-	assert.NoError(storage.CreateOrganization(ts.Tx(), &ts.Organization))
+	assert.NoError(storage.CreateOrganization(ts.tx, &ts.Organization))
 
 	ts.ServiceProfile = storage.ServiceProfile{
 		Name:            "test-sp",
 		OrganizationID:  ts.Organization.ID,
 		NetworkServerID: ts.NetworkServer.ID,
 	}
-	assert.NoError(storage.CreateServiceProfile(ts.Tx(), &ts.ServiceProfile))
+	assert.NoError(storage.CreateServiceProfile(ts.tx, &ts.ServiceProfile))
 	var spID uuid.UUID
 	copy(spID[:], ts.ServiceProfile.ServiceProfile.Id)
 
@@ -63,14 +77,14 @@ func (ts *ClockSyncTestSuite) SetupTest() {
 		OrganizationID:   ts.Organization.ID,
 		ServiceProfileID: spID,
 	}
-	assert.NoError(storage.CreateApplication(ts.Tx(), &ts.Application))
+	assert.NoError(storage.CreateApplication(ts.tx, &ts.Application))
 
 	ts.DeviceProfile = storage.DeviceProfile{
 		Name:            "test-dp",
 		OrganizationID:  ts.Organization.ID,
 		NetworkServerID: ts.NetworkServer.ID,
 	}
-	assert.NoError(storage.CreateDeviceProfile(ts.Tx(), &ts.DeviceProfile))
+	assert.NoError(storage.CreateDeviceProfile(ts.tx, &ts.DeviceProfile))
 	var dpID uuid.UUID
 	copy(dpID[:], ts.DeviceProfile.DeviceProfile.Id)
 
@@ -81,12 +95,12 @@ func (ts *ClockSyncTestSuite) SetupTest() {
 		Name:            "test-device",
 		Description:     "test device",
 	}
-	assert.NoError(storage.CreateDevice(ts.Tx(), &ts.Device))
+	assert.NoError(storage.CreateDevice(ts.tx, &ts.Device))
 
 	ts.DeviceActivation = storage.DeviceActivation{
 		DevEUI: ts.Device.DevEUI,
 	}
-	assert.NoError(storage.CreateDeviceActivation(ts.Tx(), &ts.DeviceActivation))
+	assert.NoError(storage.CreateDeviceActivation(ts.tx, &ts.DeviceActivation))
 }
 
 func (ts *ClockSyncTestSuite) TestAppTimeReq() {
@@ -111,7 +125,7 @@ func (ts *ClockSyncTestSuite) TestAppTimeReq() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.NoError(HandleClockSyncCommand(ts.Tx(), ts.Device.DevEUI, serverGPSTime, b))
+		assert.NoError(HandleClockSyncCommand(ts.tx, ts.Device.DevEUI, serverGPSTime, b))
 
 		queueReq := <-ts.NSClient.CreateDeviceQueueItemChan
 

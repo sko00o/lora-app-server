@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/loraserver/api/ns"
 	"github.com/brocaar/lorawan"
@@ -127,7 +128,7 @@ func CreateDevice(db sqlx.Ext, d *Device) error {
 		return errors.Wrap(err, "get network-server error")
 	}
 
-	nsClient, err := config.C.NetworkServer.Pool.Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
 	if err != nil {
 		return errors.Wrap(err, "get network-server client error")
 	}
@@ -184,7 +185,7 @@ func GetDevice(db sqlx.Queryer, devEUI lorawan.EUI64, forUpdate, localOnly bool)
 		return d, errors.Wrap(err, "get network-server error")
 	}
 
-	nsClient, err := config.C.NetworkServer.Pool.Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
 	if err != nil {
 		return d, errors.Wrap(err, "get network-server client error")
 	}
@@ -375,7 +376,7 @@ func UpdateDevice(db sqlx.Ext, d *Device, localOnly bool) error {
 			return errors.Wrap(err, "get network-server error")
 		}
 
-		nsClient, err := config.C.NetworkServer.Pool.Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+		nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
 		if err != nil {
 			return errors.Wrap(err, "get network-server client error")
 		}
@@ -427,7 +428,7 @@ func DeleteDevice(db sqlx.Ext, devEUI lorawan.EUI64) error {
 		return ErrDoesNotExist
 	}
 
-	nsClient, err := config.C.NetworkServer.Pool.Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
 	if err != nil {
 		return errors.Wrap(err, "get network-server client error")
 	}

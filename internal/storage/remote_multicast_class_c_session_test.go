@@ -7,34 +7,34 @@ import (
 	uuid "github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/brocaar/lora-app-server/internal/config"
-	"github.com/brocaar/lora-app-server/internal/test"
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
+	nsmock "github.com/brocaar/lora-app-server/internal/backend/networkserver/mock"
 	"github.com/brocaar/lorawan"
 )
 
 func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 	assert := require.New(ts.T())
 
-	nsClient := test.NewNetworkServerClient()
-	config.C.NetworkServer.Pool = test.NewNetworkServerPool(nsClient)
+	nsClient := nsmock.NewClient()
+	networkserver.SetPool(nsmock.NewPool(nsClient))
 
 	n := NetworkServer{
 		Name:   "test",
 		Server: "test:1234",
 	}
-	assert.NoError(CreateNetworkServer(ts.Tx(), &n))
+	assert.NoError(CreateNetworkServer(ts.tx, &n))
 
 	org := Organization{
 		Name: "test-org",
 	}
-	assert.NoError(CreateOrganization(ts.Tx(), &org))
+	assert.NoError(CreateOrganization(ts.tx, &org))
 
 	sp := ServiceProfile{
 		Name:            "test-sp",
 		OrganizationID:  org.ID,
 		NetworkServerID: n.ID,
 	}
-	assert.NoError(CreateServiceProfile(ts.Tx(), &sp))
+	assert.NoError(CreateServiceProfile(ts.tx, &sp))
 	var spID uuid.UUID
 	copy(spID[:], sp.ServiceProfile.Id)
 
@@ -43,14 +43,14 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		OrganizationID:   org.ID,
 		ServiceProfileID: spID,
 	}
-	assert.NoError(CreateApplication(ts.Tx(), &app))
+	assert.NoError(CreateApplication(ts.tx, &app))
 
 	dp := DeviceProfile{
 		Name:            "test-dp",
 		OrganizationID:  org.ID,
 		NetworkServerID: n.ID,
 	}
-	assert.NoError(CreateDeviceProfile(ts.Tx(), &dp))
+	assert.NoError(CreateDeviceProfile(ts.tx, &dp))
 	var dpID uuid.UUID
 	copy(dpID[:], dp.DeviceProfile.Id)
 
@@ -61,7 +61,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		Name:            "test-device",
 		Description:     "test device",
 	}
-	assert.NoError(CreateDevice(ts.Tx(), &d))
+	assert.NoError(CreateDevice(ts.tx, &d))
 
 	mg := MulticastGroup{
 		Name:             "test-mg",
@@ -69,7 +69,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		MCKey:            lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8},
 		ServiceProfileID: spID,
 	}
-	assert.NoError(CreateMulticastGroup(ts.Tx(), &mg))
+	assert.NoError(CreateMulticastGroup(ts.tx, &mg))
 	var mgID uuid.UUID
 	copy(mgID[:], mg.MulticastGroup.Id)
 
@@ -82,7 +82,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		State:            RemoteMulticastSetupSetup,
 		StateProvisioned: false,
 	}
-	assert.NoError(CreateRemoteMulticastSetup(ts.Tx(), &rms))
+	assert.NoError(CreateRemoteMulticastSetup(ts.tx, &rms))
 
 	ts.T().Run("Create", func(t *testing.T) {
 		assert := require.New(t)
@@ -98,7 +98,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			RetryAfter:       now,
 			RetryCount:       1,
 		}
-		assert.NoError(CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
+		assert.NoError(CreateRemoteMulticastClassCSession(ts.tx, &sess))
 		sess.CreatedAt = sess.CreatedAt.UTC().Round(time.Millisecond)
 		sess.UpdatedAt = sess.UpdatedAt.UTC().Round(time.Millisecond)
 		sess.RetryAfter = sess.RetryAfter.UTC().Round(time.Millisecond)
@@ -107,7 +107,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		t.Run("Get", func(t *testing.T) {
 			assert := require.New(t)
 
-			sessGet, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
+			sessGet, err := GetRemoteMulticastClassCSession(ts.tx, d.DevEUI, mgID, false)
 			assert.NoError(err)
 			sessGet.CreatedAt = sessGet.CreatedAt.UTC().Round(time.Millisecond)
 			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC().Round(time.Millisecond)
@@ -119,7 +119,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		t.Run("GetPending no setup", func(t *testing.T) {
 			assert := require.New(t)
 
-			items, err := GetPendingRemoteMulticastClassCSessions(ts.Tx(), 10, 2)
+			items, err := GetPendingRemoteMulticastClassCSessions(ts.tx, 10, 2)
 			assert.NoError(err)
 			assert.Len(items, 0)
 		})
@@ -128,15 +128,15 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			assert := require.New(t)
 
 			rms.StateProvisioned = true
-			assert.NoError(UpdateRemoteMulticastSetup(ts.Tx(), &rms))
+			assert.NoError(UpdateRemoteMulticastSetup(ts.tx, &rms))
 
-			items, err := GetPendingRemoteMulticastClassCSessions(ts.Tx(), 10, 2)
+			items, err := GetPendingRemoteMulticastClassCSessions(ts.tx, 10, 2)
 			assert.NoError(err)
 			assert.Len(items, 1)
 
 			// start a new transaction and make sure that we do not get the locked
 			// items in the result-set.
-			newTX, err := ts.DB().Beginx()
+			newTX, err := DB().Beginx()
 			assert.NoError(err)
 
 			items, err = GetPendingRemoteMulticastClassCSessions(newTX, 10, 2)
@@ -157,10 +157,10 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			sess.DR = 2
 			sess.StateProvisioned = true
 			sess.RetryAfter = now
-			assert.NoError(UpdateRemoteMulticastClassCSession(ts.Tx(), &sess))
+			assert.NoError(UpdateRemoteMulticastClassCSession(ts.tx, &sess))
 			sess.UpdatedAt = sess.UpdatedAt.UTC().Round(time.Millisecond)
 
-			sessGet, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
+			sessGet, err := GetRemoteMulticastClassCSession(ts.tx, d.DevEUI, mgID, false)
 			assert.NoError(err)
 			sessGet.CreatedAt = sessGet.CreatedAt.UTC().Round(time.Millisecond)
 			sessGet.UpdatedAt = sessGet.UpdatedAt.UTC().Round(time.Millisecond)
@@ -171,7 +171,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			t.Run("GetPending", func(t *testing.T) {
 				assert := require.New(t)
 
-				items, err := GetPendingRemoteMulticastClassCSessions(ts.Tx(), 10, 2)
+				items, err := GetPendingRemoteMulticastClassCSessions(ts.tx, 10, 2)
 				assert.NoError(err)
 				assert.Len(items, 0)
 			})
@@ -180,8 +180,8 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 		t.Run("Delete", func(t *testing.T) {
 			assert := require.New(t)
 
-			assert.NoError(DeleteRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID))
-			_, err := GetRemoteMulticastClassCSession(ts.Tx(), d.DevEUI, mgID, false)
+			assert.NoError(DeleteRemoteMulticastClassCSession(ts.tx, d.DevEUI, mgID))
+			_, err := GetRemoteMulticastClassCSession(ts.tx, d.DevEUI, mgID, false)
 			assert.Equal(err, ErrDoesNotExist)
 		})
 	})

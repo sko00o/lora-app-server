@@ -35,13 +35,13 @@ func Setup(conf config.Config) error {
 // SyncRemoteFragmentationSessions syncs the fragmentation sessions with the devices.
 func SyncRemoteFragmentationSessionsLoop() {
 	for {
-		err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
+		err := storage.Transaction(func(tx sqlx.Ext) error {
 			return syncRemoteFragmentationSessions(tx)
 		})
 		if err != nil {
 			log.WithError(err).Error("sync remote fragmentation setup error")
 		}
-		time.Sleep(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
+		time.Sleep(syncInterval)
 	}
 }
 
@@ -78,7 +78,7 @@ func HandleRemoteFragmentationSessionCommand(db sqlx.Ext, devEUI lorawan.EUI64, 
 }
 
 func syncRemoteFragmentationSessions(db sqlx.Ext) error {
-	items, err := storage.GetPendingRemoteFragmentationSessions(db, config.C.ApplicationServer.RemoteMulticastSetup.SyncBatchSize, config.C.ApplicationServer.RemoteMulticastSetup.SyncRetries)
+	items, err := storage.GetPendingRemoteFragmentationSessions(db, syncBatchSize, syncRetries)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func syncRemoteFragmentationSession(db sqlx.Ext, item storage.RemoteFragmentatio
 	}).Infof("%s enqueued", cmd.CID)
 
 	item.RetryCount++
-	item.RetryAfter = time.Now().Add(config.C.ApplicationServer.RemoteMulticastSetup.SyncInterval)
+	item.RetryAfter = time.Now().Add(syncInterval)
 
 	err = storage.UpdateRemoteFragmentationSession(db, &item)
 	if err != nil {

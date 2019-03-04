@@ -8,7 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/brocaar/lora-app-server/internal/config"
+	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
+	nsmock "github.com/brocaar/lora-app-server/internal/backend/networkserver/mock"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/lora-app-server/internal/test"
 	"github.com/brocaar/lorawan"
@@ -18,9 +19,9 @@ import (
 
 type MulticastSetupTestSuite struct {
 	suite.Suite
-	test.DatabaseTestSuiteBase
+	tx *storage.TxLogger
 
-	NSClient         *test.NetworkServerClient
+	NSClient         *nsmock.Client
 	NetworkServer    storage.NetworkServer
 	Organization     storage.Organization
 	ServiceProfile   storage.ServiceProfile
@@ -32,38 +33,47 @@ type MulticastSetupTestSuite struct {
 }
 
 func (ts *MulticastSetupTestSuite) SetupSuite() {
-	ts.DatabaseTestSuiteBase.SetupSuite()
+	assert := require.New(ts.T())
 
 	syncInterval = time.Minute
 	syncRetries = 5
 	syncBatchSize = 10
+
+	conf := test.GetConfig()
+	assert.NoError(storage.Setup(conf))
+	test.MustResetDB(storage.DB().DB)
+}
+
+func (ts *MulticastSetupTestSuite) TearDownTest() {
+	ts.tx.Rollback()
 }
 
 func (ts *MulticastSetupTestSuite) SetupTest() {
-	ts.DatabaseTestSuiteBase.SetupTest()
-
 	assert := require.New(ts.T())
+	var err error
+	ts.tx, err = storage.DB().Beginx()
+	assert.NoError(err)
 
-	ts.NSClient = test.NewNetworkServerClient()
-	config.C.NetworkServer.Pool = test.NewNetworkServerPool(ts.NSClient)
+	ts.NSClient = nsmock.NewClient()
+	networkserver.SetPool(nsmock.NewPool(ts.NSClient))
 
 	ts.NetworkServer = storage.NetworkServer{
 		Name:   "test",
 		Server: "test:1234",
 	}
-	assert.NoError(storage.CreateNetworkServer(ts.Tx(), &ts.NetworkServer))
+	assert.NoError(storage.CreateNetworkServer(ts.tx, &ts.NetworkServer))
 
 	ts.Organization = storage.Organization{
 		Name: "test-org",
 	}
-	assert.NoError(storage.CreateOrganization(ts.Tx(), &ts.Organization))
+	assert.NoError(storage.CreateOrganization(ts.tx, &ts.Organization))
 
 	ts.ServiceProfile = storage.ServiceProfile{
 		Name:            "test-sp",
 		OrganizationID:  ts.Organization.ID,
 		NetworkServerID: ts.NetworkServer.ID,
 	}
-	assert.NoError(storage.CreateServiceProfile(ts.Tx(), &ts.ServiceProfile))
+	assert.NoError(storage.CreateServiceProfile(ts.tx, &ts.ServiceProfile))
 	var spID uuid.UUID
 	copy(spID[:], ts.ServiceProfile.ServiceProfile.Id)
 
@@ -72,14 +82,14 @@ func (ts *MulticastSetupTestSuite) SetupTest() {
 		OrganizationID:   ts.Organization.ID,
 		ServiceProfileID: spID,
 	}
-	assert.NoError(storage.CreateApplication(ts.Tx(), &ts.Application))
+	assert.NoError(storage.CreateApplication(ts.tx, &ts.Application))
 
 	ts.DeviceProfile = storage.DeviceProfile{
 		Name:            "test-dp",
 		OrganizationID:  ts.Organization.ID,
 		NetworkServerID: ts.NetworkServer.ID,
 	}
-	assert.NoError(storage.CreateDeviceProfile(ts.Tx(), &ts.DeviceProfile))
+	assert.NoError(storage.CreateDeviceProfile(ts.tx, &ts.DeviceProfile))
 	var dpID uuid.UUID
 	copy(dpID[:], ts.DeviceProfile.DeviceProfile.Id)
 
@@ -90,12 +100,12 @@ func (ts *MulticastSetupTestSuite) SetupTest() {
 		Name:            "test-device",
 		Description:     "test device",
 	}
-	assert.NoError(storage.CreateDevice(ts.Tx(), &ts.Device))
+	assert.NoError(storage.CreateDevice(ts.tx, &ts.Device))
 
 	ts.DeviceActivation = storage.DeviceActivation{
 		DevEUI: ts.Device.DevEUI,
 	}
-	assert.NoError(storage.CreateDeviceActivation(ts.Tx(), &ts.DeviceActivation))
+	assert.NoError(storage.CreateDeviceActivation(ts.tx, &ts.DeviceActivation))
 
 	ts.MulticastGroup = storage.MulticastGroup{
 		Name:             "test-mg",
@@ -103,7 +113,7 @@ func (ts *MulticastSetupTestSuite) SetupTest() {
 		MCKey:            lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8},
 		ServiceProfileID: spID,
 	}
-	assert.NoError(storage.CreateMulticastGroup(ts.Tx(), &ts.MulticastGroup))
+	assert.NoError(storage.CreateMulticastGroup(ts.tx, &ts.MulticastGroup))
 }
 
 func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastSetupReq() {
@@ -119,10 +129,10 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastSetupReq() {
 	}
 	copy(ms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 
-	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &ms))
-	assert.NoError(syncRemoteMulticastSetup(ts.Tx()))
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.tx, &ms))
+	assert.NoError(syncRemoteMulticastSetup(ts.tx))
 
-	ms, err := storage.GetRemoteMulticastSetup(ts.Tx(), ms.DevEUI, ms.MulticastGroupID, false)
+	ms, err := storage.GetRemoteMulticastSetup(ts.tx, ms.DevEUI, ms.MulticastGroupID, false)
 	assert.NoError(err)
 	assert.Equal(1, ms.RetryCount)
 	assert.True(ms.RetryAfter.After(time.Now()))
@@ -163,7 +173,7 @@ func (ts *MulticastSetupTestSuite) TestMcGroupSetupAns() {
 		State:          storage.RemoteMulticastSetupSetup,
 	}
 	copy(rms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
-	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &rms))
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.tx, &rms))
 
 	ts.T().Run("Error", func(t *testing.T) {
 		assert := require.New(t)
@@ -179,7 +189,7 @@ func (ts *MulticastSetupTestSuite) TestMcGroupSetupAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.Equal("handle McGroupSetupAns error: IDError for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+		assert.Equal("handle McGroupSetupAns error: IDError for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.tx, ts.Device.DevEUI, b).Error())
 	})
 
 	ts.T().Run("OK", func(t *testing.T) {
@@ -195,9 +205,9 @@ func (ts *MulticastSetupTestSuite) TestMcGroupSetupAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.NoError(HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b))
+		assert.NoError(HandleRemoteMulticastSetupCommand(ts.tx, ts.Device.DevEUI, b))
 
-		rms, err := storage.GetRemoteMulticastSetupByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
+		rms, err := storage.GetRemoteMulticastSetupByGroupID(ts.tx, ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(rms.StateProvisioned)
 	})
@@ -216,8 +226,8 @@ func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
 		State:          storage.RemoteMulticastSetupDelete,
 	}
 	copy(rms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
-	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &rms))
-	assert.NoError(storage.AddDeviceToMulticastGroup(ts.Tx(), rms.MulticastGroupID, ts.Device.DevEUI))
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.tx, &rms))
+	assert.NoError(storage.AddDeviceToMulticastGroup(ts.tx, rms.MulticastGroupID, ts.Device.DevEUI))
 
 	ts.T().Run("Error", func(t *testing.T) {
 		assert := require.New(t)
@@ -233,9 +243,9 @@ func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.Equal("handle McGroupDeleteAns error: McGroupUndefined for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+		assert.Equal("handle McGroupDeleteAns error: McGroupUndefined for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.tx, ts.Device.DevEUI, b).Error())
 
-		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), rms.MulticastGroupID, 10, 0)
+		devices, err := storage.GetDevicesForMulticastGroup(ts.tx, rms.MulticastGroupID, 10, 0)
 		assert.NoError(err)
 		assert.Len(devices, 1)
 	})
@@ -253,13 +263,13 @@ func (ts *MulticastSetupTestSuite) TestMcGroupDeleteAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.NoError(HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b))
+		assert.NoError(HandleRemoteMulticastSetupCommand(ts.tx, ts.Device.DevEUI, b))
 
-		rms, err := storage.GetRemoteMulticastSetupByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
+		rms, err := storage.GetRemoteMulticastSetupByGroupID(ts.tx, ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(rms.StateProvisioned)
 
-		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), rms.MulticastGroupID, 10, 0)
+		devices, err := storage.GetDevicesForMulticastGroup(ts.tx, rms.MulticastGroupID, 10, 0)
 		assert.NoError(err)
 		assert.Len(devices, 0)
 	})
@@ -279,10 +289,10 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastDeleteReq() {
 	}
 	copy(ms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 
-	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &ms))
-	assert.NoError(syncRemoteMulticastSetup(ts.Tx()))
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.tx, &ms))
+	assert.NoError(syncRemoteMulticastSetup(ts.tx))
 
-	ms, err := storage.GetRemoteMulticastSetup(ts.Tx(), ms.DevEUI, ms.MulticastGroupID, false)
+	ms, err := storage.GetRemoteMulticastSetup(ts.tx, ms.DevEUI, ms.MulticastGroupID, false)
 	assert.NoError(err)
 	assert.Equal(1, ms.RetryCount)
 	assert.True(ms.RetryAfter.After(time.Now()))
@@ -317,7 +327,7 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionReq() {
 		StateProvisioned: true,
 	}
 	copy(ms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
-	assert.NoError(storage.CreateRemoteMulticastSetup(ts.Tx(), &ms))
+	assert.NoError(storage.CreateRemoteMulticastSetup(ts.tx, &ms))
 
 	sess := storage.RemoteMulticastClassCSession{
 		DevEUI:         ts.Device.DevEUI,
@@ -328,10 +338,10 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionReq() {
 		DR:             3,
 	}
 	copy(sess.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
-	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
-	assert.NoError(syncRemoteMulticastClassCSession(ts.Tx()))
+	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.tx, &sess))
+	assert.NoError(syncRemoteMulticastClassCSession(ts.tx))
 
-	sess, err := storage.GetRemoteMulticastClassCSession(ts.Tx(), sess.DevEUI, sess.MulticastGroupID, false)
+	sess, err := storage.GetRemoteMulticastClassCSession(ts.tx, sess.DevEUI, sess.MulticastGroupID, false)
 	assert.NoError(err)
 	assert.Equal(1, sess.RetryCount)
 	assert.True(sess.RetryAfter.After(time.Now()))
@@ -372,7 +382,7 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionAns() {
 		DR:             3,
 	}
 	copy(sess.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
-	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.Tx(), &sess))
+	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.tx, &sess))
 
 	ts.T().Run("Error", func(t *testing.T) {
 		assert := require.New(t)
@@ -388,9 +398,9 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.Equal("handle McClassCSessionAns error: DRError: false, FreqError: false, McGroupUndefined: true for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b).Error())
+		assert.Equal("handle McClassCSessionAns error: DRError: false, FreqError: false, McGroupUndefined: true for McGroupID: 1", HandleRemoteMulticastSetupCommand(ts.tx, ts.Device.DevEUI, b).Error())
 
-		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), sess.MulticastGroupID, 10, 0)
+		devices, err := storage.GetDevicesForMulticastGroup(ts.tx, sess.MulticastGroupID, 10, 0)
 		assert.NoError(err)
 		assert.Len(devices, 0)
 	})
@@ -410,13 +420,13 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionAns() {
 		}
 		b, err := cmd.MarshalBinary()
 		assert.NoError(err)
-		assert.NoError(HandleRemoteMulticastSetupCommand(ts.Tx(), ts.Device.DevEUI, b))
+		assert.NoError(HandleRemoteMulticastSetupCommand(ts.tx, ts.Device.DevEUI, b))
 
-		sess, err := storage.GetRemoteMulticastClassCSessionByGroupID(ts.Tx(), ts.Device.DevEUI, 1, false)
+		sess, err := storage.GetRemoteMulticastClassCSessionByGroupID(ts.tx, ts.Device.DevEUI, 1, false)
 		assert.NoError(err)
 		assert.True(sess.StateProvisioned)
 
-		devices, err := storage.GetDevicesForMulticastGroup(ts.Tx(), sess.MulticastGroupID, 10, 0)
+		devices, err := storage.GetDevicesForMulticastGroup(ts.tx, sess.MulticastGroupID, 10, 0)
 		assert.NoError(err)
 		assert.Len(devices, 1)
 	})
