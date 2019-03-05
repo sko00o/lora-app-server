@@ -89,6 +89,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
 			State:            RemoteMulticastSetupSetup,
 			RetryAfter:       now,
 			RetryCount:       1,
+			RetryInterval:    time.Minute,
 		}
 		assert.NoError(CreateRemoteMulticastSetup(ts.tx, &dmg))
 		dmg.CreatedAt = dmg.CreatedAt.UTC().Round(time.Millisecond)
@@ -136,6 +137,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastSetup() {
 			dmg.State = RemoteMulticastSetupDelete
 			dmg.StateProvisioned = true
 			dmg.RetryAfter = now
+			dmg.RetryInterval = time.Minute * 2
 			assert.NoError(UpdateRemoteMulticastSetup(ts.tx, &dmg))
 			dmg.UpdatedAt = dmg.UpdatedAt.UTC().Round(time.Millisecond)
 

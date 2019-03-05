@@ -126,6 +126,7 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastSetupReq() {
 		MinMcFCnt:      10,
 		MaxMcFCnt:      20,
 		State:          storage.RemoteMulticastSetupSetup,
+		RetryInterval:  time.Minute,
 	}
 	copy(ms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 
@@ -171,6 +172,7 @@ func (ts *MulticastSetupTestSuite) TestMcGroupSetupAns() {
 		MinMcFCnt:      10,
 		MaxMcFCnt:      20,
 		State:          storage.RemoteMulticastSetupSetup,
+		RetryInterval:  time.Minute,
 	}
 	copy(rms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 	assert.NoError(storage.CreateRemoteMulticastSetup(ts.tx, &rms))
@@ -286,6 +288,7 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastDeleteReq() {
 		MinMcFCnt:      10,
 		MaxMcFCnt:      20,
 		State:          storage.RemoteMulticastSetupDelete,
+		RetryInterval:  time.Minute,
 	}
 	copy(ms.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 
@@ -336,6 +339,7 @@ func (ts *MulticastSetupTestSuite) TestSyncRemoteMulticastClassCSessionReq() {
 		SessionTimeOut: 10,
 		DLFrequency:    868100000,
 		DR:             3,
+		RetryInterval:  time.Minute,
 	}
 	copy(sess.MulticastGroupID[:], ts.MulticastGroup.MulticastGroup.Id)
 	assert.NoError(storage.CreateRemoteMulticastClassCSession(ts.tx, &sess))

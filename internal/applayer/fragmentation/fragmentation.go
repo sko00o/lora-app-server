@@ -150,7 +150,7 @@ func syncRemoteFragmentationSession(db sqlx.Ext, item storage.RemoteFragmentatio
 	}).Infof("%s enqueued", cmd.CID)
 
 	item.RetryCount++
-	item.RetryAfter = time.Now().Add(syncInterval)
+	item.RetryAfter = time.Now().Add(item.RetryInterval)
 
 	err = storage.UpdateRemoteFragmentationSession(db, &item)
 	if err != nil {

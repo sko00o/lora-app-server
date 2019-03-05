@@ -33,6 +33,7 @@ type RemoteMulticastSetup struct {
 	MaxMcFCnt        uint32                    `db:"max_mc_f_cnt"`
 	State            RemoteMulticastSetupState `db:"state"`
 	StateProvisioned bool                      `db:"state_provisioned"`
+	RetryInterval    time.Duration             `db:"retry_interval"`
 	RetryAfter       time.Time                 `db:"retry_after"`
 	RetryCount       int                       `db:"retry_count"`
 }
@@ -57,8 +58,9 @@ func CreateRemoteMulticastSetup(db sqlx.Ext, dms *RemoteMulticastSetup) error {
 			state,
 			state_provisioned,
 			retry_after,
-			retry_count
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+			retry_count,
+			retry_interval
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
 		dms.DevEUI[:],
 		dms.MulticastGroupID,
 		dms.CreatedAt,
@@ -72,6 +74,7 @@ func CreateRemoteMulticastSetup(db sqlx.Ext, dms *RemoteMulticastSetup) error {
 		dms.StateProvisioned,
 		dms.RetryAfter,
 		dms.RetryCount,
+		dms.RetryInterval,
 	)
 	if err != nil {
 		return handlePSQLError(Insert, err, "insert error")
@@ -178,7 +181,8 @@ func UpdateRemoteMulticastSetup(db sqlx.Ext, dmg *RemoteMulticastSetup) error {
 			state = $9,
 			state_provisioned = $10,
 			retry_after = $11,
-			retry_count = $12
+			retry_count = $12,
+			retry_interval = $13
 		where
 			dev_eui = $1
 			and multicast_group_id = $2`,
@@ -194,6 +198,7 @@ func UpdateRemoteMulticastSetup(db sqlx.Ext, dmg *RemoteMulticastSetup) error {
 		dmg.StateProvisioned,
 		dmg.RetryAfter,
 		dmg.RetryCount,
+		dmg.RetryInterval,
 	)
 	if err != nil {
 		return handlePSQLError(Update, err, "update error")

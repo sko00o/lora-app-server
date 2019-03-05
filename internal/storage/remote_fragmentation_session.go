@@ -29,6 +29,7 @@ type RemoteFragmentationSession struct {
 	StateProvisioned    bool                      `db:"state_provisioned"`
 	RetryAfter          time.Time                 `db:"retry_after"`
 	RetryCount          int                       `db:"retry_count"`
+	RetryInterval       time.Duration             `db:"retry_interval"`
 }
 
 // CreateRemoteFragmentationSession creates the given fragmentation session.
@@ -53,8 +54,9 @@ func CreateRemoteFragmentationSession(db sqlx.Ext, sess *RemoteFragmentationSess
 			state,
 			state_provisioned,
 			retry_after,
-			retry_count
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+			retry_count,
+			retry_interval
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
 		sess.DevEUI,
 		sess.FragIndex,
 		sess.CreatedAt,
@@ -70,6 +72,7 @@ func CreateRemoteFragmentationSession(db sqlx.Ext, sess *RemoteFragmentationSess
 		sess.StateProvisioned,
 		sess.RetryAfter,
 		sess.RetryCount,
+		sess.RetryInterval,
 	)
 	if err != nil {
 		return handlePSQLError(Insert, err, "insert error")
@@ -106,7 +109,8 @@ func GetRemoteFragmentationSession(db sqlx.Queryer, devEUI lorawan.EUI64, fragIn
 			state,
 			state_provisioned,
 			retry_after,
-			retry_count
+			retry_count,
+			retry_interval
 		from
 			remote_fragmentation_session
 		where
@@ -140,7 +144,8 @@ func GetPendingRemoteFragmentationSessions(db sqlx.Queryer, limit, maxRetryCount
 			fs.state,
 			fs.state_provisioned,
 			fs.retry_after,
-			fs.retry_count
+			fs.retry_count,
+			fs.retry_interval
 		from
 			remote_fragmentation_session fs
 		where
@@ -205,7 +210,8 @@ func UpdateRemoteFragmentationSession(db sqlx.Ext, sess *RemoteFragmentationSess
 			state = $11,
 			state_provisioned = $12,
 			retry_after = $13,
-			retry_count = $14
+			retry_count = $14,
+			retry_interval = $15
 		where
 			dev_eui = $1
 			and frag_index = $2`,
@@ -223,6 +229,7 @@ func UpdateRemoteFragmentationSession(db sqlx.Ext, sess *RemoteFragmentationSess
 		sess.StateProvisioned,
 		sess.RetryAfter,
 		sess.RetryCount,
+		sess.RetryInterval,
 	)
 	if err != nil {
 		return handlePSQLError(Update, err, "update error")
@@ -294,6 +301,7 @@ func scanRemoteFragmentationSession(row sqlx.ColScanner) (RemoteFragmentationSes
 		&sess.StateProvisioned,
 		&sess.RetryAfter,
 		&sess.RetryCount,
+		&sess.RetryInterval,
 	)
 	if err != nil {
 		return sess, handlePSQLError(Select, err, "select error")

@@ -25,6 +25,7 @@ type RemoteMulticastClassCSession struct {
 	StateProvisioned bool          `db:"state_provisioned"`
 	RetryAfter       time.Time     `db:"retry_after"`
 	RetryCount       int           `db:"retry_count"`
+	RetryInterval    time.Duration `db:"retry_interval"`
 }
 
 // CreateRemoteMulticastClassCSession creates the given multicast Class-C session.
@@ -46,8 +47,9 @@ func CreateRemoteMulticastClassCSession(db sqlx.Ext, sess *RemoteMulticastClassC
 			dr,
 			state_provisioned,
 			retry_after,
-			retry_count
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+			retry_count,
+			retry_interval
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		sess.DevEUI,
 		sess.MulticastGroupID,
 		sess.CreatedAt,
@@ -60,6 +62,7 @@ func CreateRemoteMulticastClassCSession(db sqlx.Ext, sess *RemoteMulticastClassC
 		sess.StateProvisioned,
 		sess.RetryAfter,
 		sess.RetryCount,
+		sess.RetryInterval,
 	)
 	if err != nil {
 		return handlePSQLError(Insert, err, "insert error")
@@ -178,7 +181,8 @@ func UpdateRemoteMulticastClassCSession(db sqlx.Ext, sess *RemoteMulticastClassC
 			dr = $8,
 			state_provisioned = $9,
 			retry_after = $10,
-			retry_count = $11
+			retry_count = $11,
+			retry_interval = $12
 		where
 			dev_eui = $1
 			and multicast_group_id = $2`,
@@ -193,6 +197,7 @@ func UpdateRemoteMulticastClassCSession(db sqlx.Ext, sess *RemoteMulticastClassC
 		sess.StateProvisioned,
 		sess.RetryAfter,
 		sess.RetryCount,
+		sess.RetryInterval,
 	)
 	if err != nil {
 		return handlePSQLError(Update, err, "update error")

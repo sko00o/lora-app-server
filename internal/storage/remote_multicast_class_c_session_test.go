@@ -97,6 +97,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			DR:               3,
 			RetryAfter:       now,
 			RetryCount:       1,
+			RetryInterval:    time.Minute,
 		}
 		assert.NoError(CreateRemoteMulticastClassCSession(ts.tx, &sess))
 		sess.CreatedAt = sess.CreatedAt.UTC().Round(time.Millisecond)
@@ -157,6 +158,7 @@ func (ts *StorageTestSuite) TestRemoteMulticastClassCSession() {
 			sess.DR = 2
 			sess.StateProvisioned = true
 			sess.RetryAfter = now
+			sess.RetryInterval = time.Minute * 2
 			assert.NoError(UpdateRemoteMulticastClassCSession(ts.tx, &sess))
 			sess.UpdatedAt = sess.UpdatedAt.UTC().Round(time.Millisecond)
 

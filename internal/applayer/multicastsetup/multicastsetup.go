@@ -261,7 +261,7 @@ func syncRemoteMulticastSetupItem(db sqlx.Ext, item storage.RemoteMulticastSetup
 	}).Infof("%s enqueued", cmd.CID)
 
 	item.RetryCount++
-	item.RetryAfter = time.Now().Add(syncInterval)
+	item.RetryAfter = time.Now().Add(item.RetryInterval)
 
 	err = storage.UpdateRemoteMulticastSetup(db, &item)
 	if err != nil {
@@ -318,7 +318,7 @@ func syncRemoteMulticastClassCSessionItem(db sqlx.Ext, item storage.RemoteMultic
 	}).Infof("%s enqueued", cmd.CID)
 
 	item.RetryCount++
-	item.RetryAfter = time.Now().Add(syncInterval)
+	item.RetryAfter = time.Now().Add(item.RetryInterval)
 
 	err = storage.UpdateRemoteMulticastClassCSession(db, &item)
 	if err != nil {

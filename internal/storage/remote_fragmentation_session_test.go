@@ -99,6 +99,7 @@ func (ts *StorageTestSuite) TestRemoteFragmentationSession() {
 			State:               RemoteMulticastSetupSetup,
 			RetryAfter:          now,
 			RetryCount:          1,
+			RetryInterval:       time.Minute,
 		}
 		assert.NoError(CreateRemoteFragmentationSession(ts.tx, &rfs))
 		rfs.CreatedAt = rfs.CreatedAt.UTC().Round(time.Millisecond)
@@ -173,6 +174,7 @@ func (ts *StorageTestSuite) TestRemoteFragmentationSession() {
 			rfs.StateProvisioned = true
 			rfs.RetryAfter = now
 			rfs.RetryCount = 2
+			rfs.RetryInterval = time.Minute * 2
 
 			assert.NoError(UpdateRemoteFragmentationSession(ts.tx, &rfs))
 			rfs.UpdatedAt = rfs.UpdatedAt.UTC().Round(time.Millisecond)

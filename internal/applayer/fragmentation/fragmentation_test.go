@@ -120,6 +120,7 @@ func (ts *FragmentationSessionTestSuite) TestSyncFragSessionSetupReq() {
 		Padding:             2,
 		Descriptor:          [4]byte{1, 2, 3, 4},
 		State:               storage.RemoteMulticastSetupSetup,
+		RetryInterval:       time.Minute,
 	}
 	assert.NoError(storage.CreateRemoteFragmentationSession(ts.tx, &rfs))
 	assert.NoError(syncRemoteFragmentationSessions(ts.tx))
@@ -169,6 +170,7 @@ func (ts *FragmentationSessionTestSuite) TestSyncFragSessionDeleteReq() {
 		Padding:             2,
 		Descriptor:          [4]byte{1, 2, 3, 4},
 		State:               storage.RemoteMulticastSetupDelete,
+		RetryInterval:       time.Minute,
 	}
 	assert.NoError(storage.CreateRemoteFragmentationSession(ts.tx, &rfs))
 	assert.NoError(syncRemoteFragmentationSessions(ts.tx))

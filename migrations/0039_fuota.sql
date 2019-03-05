@@ -27,6 +27,7 @@ create table remote_multicast_setup (
     state_provisioned bool not null default false,
     retry_after timestamp with time zone not null,
     retry_count smallint not null,
+    retry_interval bigint not null,
 
     primary key(dev_eui, multicast_group_id)
 );
@@ -47,6 +48,7 @@ create table remote_multicast_class_c_session (
     state_provisioned bool not null default false,
     retry_after timestamp with time zone not null,
     retry_count smallint not null,
+    retry_interval bigint not null,
 
     primary key(dev_eui, multicast_group_id)
 );
@@ -70,6 +72,7 @@ create table remote_fragmentation_session (
     state_provisioned bool not null default false,
     retry_after timestamp with time zone not null,
     retry_count smallint not null,
+    retry_interval bigint not null,
 
     primary key(dev_eui, frag_index)
 );
@@ -77,7 +80,42 @@ create table remote_fragmentation_session (
 create index idx_remote_fragmentation_session_state_provisioned on remote_fragmentation_session(state_provisioned);
 create index idx_remote_fragmentation_session_retry_after on remote_fragmentation_session(retry_after);
 
+create table fuota_deployment (
+    id uuid primary key,
+    created_at timestamp with time zone not null,
+    updated_at timestamp with time zone not null,
+    name varchar(100) not null,
+    multicast_group_id uuid references multicast_group on delete set null,
+    fragmentation_matrix bytea not null,
+    descriptor bytea not null,
+    payload bytea not null,
+    state varchar(20) not null,
+    next_run_after timestamp with time zone not null
+);
+
+create index idx_fuota_deployment_multicast_group_id on fuota_deployment(multicast_group_id);
+create index idx_fuota_deployment_state on fuota_deployment(state);
+create index idx_fuota_deployment_next_run_after on fuota_deployment(next_run_after);
+
+create table fuota_deployment_device (
+    fuota_deployment_id uuid not null references fuota_deployment on delete cascade,
+    dev_eui bytea not null references device on delete cascade,
+    created_at timestamp with time zone not null,
+    updated_at timestamp with time zone not null,
+    state varchar(20) not null,
+    error_message text not null,
+
+    primary key(fuota_deployment_id, dev_eui)
+);
+
 -- +migrate Down
+drop table fuota_deployment_device;
+
+drop index idx_fuota_deployment_next_run_after;
+drop index idx_fuota_deployment_state;
+drop index idx_fuota_deployment_multicast_group_id;
+drop table fuota_deployment;
+
 drop index idx_remote_fragmentation_session_retry_after;
 drop index idx_remote_fragmentation_session_state_provisioned;
 drop table remote_fragmentation_session;
