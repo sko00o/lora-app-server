@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package api;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+
+// FUOTADeploymentService is the service managing FUOTA deployments.
+service FUOTADeploymentService {
+    // CreateForDevEUI creates a deployment for the given DevEUI.
+    rpc CreateForDevEUI(CreateFUOTADeploymentForDevEUIRequest) returns (CreateFUOTADeploymentForDevEUIResponse) {
+        option(google.api.http) = {
+            post: "/api/devices/{dev_eui}/deployment"
+            body: "*"
+        };
+    }
+}
+
+message Deployment {
+    // ID of the deployment (string formatted UUID).
+    // This value will be automatically assigned on create.
+    string id = 1;
+
+    // Name of the deployment.
+    string name = 2;
+
+    // Multicast type.
+    // Currently only Class-C is supported!
+    MulticastGroupType group_type = 3;
+
+    // Data-rate.
+    uint32 dr = 4;
+
+    // Frequency (Hz).
+    uint32 frequency = 5;
+
+    // Ping-slot period.
+    // Mandatory for Class-B multicast groups.
+    uint32 ping_slot_period = 6;
+
+    // Payload.
+    bytes payload = 7;
+
+    // Redundancy percentage.
+    float redundancy_percentage = 8;
+
+    // Block ack delay.
+    uint32 block_ack_delay = 9;
+}
+
+message CreateFUOTADeploymentForDevEUIRequest {
+    // Device EUI (HEX encoded).
+    string dev_eui = 1 [json_name = "devEUI"];
+}
+
+message CreateFUOTADeploymentForDevEUIResponse {
+    // ID of the created deployment (string formatted UUID).
+    string id = 1;
+}
+
