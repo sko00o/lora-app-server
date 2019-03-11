@@ -6,7 +6,7 @@ require (
 	github.com/NickBall/go-aes-key-wrap v0.0.0-20170929221519-1c3aa3e4dfc5
 	github.com/aws/aws-sdk-go v1.17.5
 	github.com/brocaar/loraserver v0.0.0-20190116145810-3cdb0c99d7e3
-	github.com/brocaar/lorawan v0.0.0-20190219072530-e320612b3e3d
+	github.com/brocaar/lorawan v0.0.0-20190305110132-11ffaf662692
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/eclipse/paho.mqtt.golang v0.0.0-20190117150808-cb7eb9363b44
 	github.com/elazarl/go-bindata-assetfs v0.0.0-20180223160309-38087fe4dafb
@@ -22,14 +22,9 @@ require (
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v0.0.0-20190104160321-4832df01553a
 	github.com/grpc-ecosystem/grpc-gateway v1.8.1
-	github.com/jacobsa/crypto v0.0.0-20180924003735-d95898ceee07 // indirect
-	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd // indirect
-	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff // indirect
-	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11 // indirect
-	github.com/jacobsa/reqtrace v0.0.0-20150505043853-245c9e0234cb // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
-	github.com/jtolds/gls v0.0.0-20181110203027-b4936e06046b // indirect
+	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/lib/pq v1.0.0
 	github.com/mattn/go-colorable v0.1.1 // indirect
@@ -39,8 +34,8 @@ require (
 	github.com/robertkrimen/otto v0.0.0-20180617131154-15f95af6e78d
 	github.com/rubenv/sql-migrate v0.0.0-20181213081019-5a8808c14925
 	github.com/sirupsen/logrus v1.3.0
-	github.com/smartystreets/assertions v0.0.0-20180301161246-7678a5452ebe // indirect
-	github.com/smartystreets/goconvey v0.0.0-20170602164621-9e8dc3f972df
+	github.com/smartystreets/assertions v0.0.0-20190215210624-980c5ac6f3ac // indirect
+	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa
 	github.com/smartystreets/gunit v0.0.0-20180314194857-6f0d6275bdcd // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
@@ -52,7 +47,7 @@ require (
 	golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f
 	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421 // indirect
-	golang.org/x/sys v0.0.0-20190303192550-c2f5717e611c // indirect
+	golang.org/x/sys v0.0.0-20190305064518-30e92a19ae4a // indirect
 	golang.org/x/tools v0.0.0-20190228203856-589c23e65e65
 	google.golang.org/api v0.1.0
 	google.golang.org/genproto v0.0.0-20190227213309-4f5b463f9597

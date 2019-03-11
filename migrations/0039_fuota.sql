@@ -89,13 +89,18 @@ create table fuota_deployment (
     fragmentation_matrix bytea not null,
     descriptor bytea not null,
     payload bytea not null,
+    frag_size smallint not null,
+    redundancy smallint not null,
+    multicast_timeout smallint not null,
+    block_ack_delay smallint not null,
     state varchar(20) not null,
-    next_run_after timestamp with time zone not null
+    unicast_timeout bigint not null,
+    next_step_after timestamp with time zone not null
 );
 
 create index idx_fuota_deployment_multicast_group_id on fuota_deployment(multicast_group_id);
 create index idx_fuota_deployment_state on fuota_deployment(state);
-create index idx_fuota_deployment_next_run_after on fuota_deployment(next_run_after);
+create index idx_fuota_deployment_next_step_after on fuota_deployment(next_step_after);
 
 create table fuota_deployment_device (
     fuota_deployment_id uuid not null references fuota_deployment on delete cascade,
@@ -111,7 +116,7 @@ create table fuota_deployment_device (
 -- +migrate Down
 drop table fuota_deployment_device;
 
-drop index idx_fuota_deployment_next_run_after;
+drop index idx_fuota_deployment_next_step_after;
 drop index idx_fuota_deployment_state;
 drop index idx_fuota_deployment_multicast_group_id;
 drop table fuota_deployment;

@@ -68,6 +68,11 @@ type Config struct {
 			SyncBatchSize int           `mapstructure:"sync_batch_size"`
 		} `mapstructure:"fragmentation_session"`
 
+		FUOTADeployment struct {
+			McGroupID int `mapstructure:"mc_group_id"`
+			FragIndex int `mapstructure:"frag_index"`
+		} `mapstructure:"fuota_deployment"`
+
 		Branding struct {
 			Header       string
 			Footer       string
