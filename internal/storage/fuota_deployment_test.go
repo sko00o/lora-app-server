@@ -87,13 +87,17 @@ func (ts *StorageTestSuite) TestFUOTADeployment() {
 			Redundancy:          20,
 			BlockAckDelay:       6,
 			MulticastTimeout:    3,
+			GroupType:           FUOTADeploymentGroupTypeB,
+			DR:                  3,
+			Frequency:           868100000,
+			PingSlotPeriod:      2,
 		}
 		assert.NoError(CreateFUOTADeploymentForDevice(ts.tx, &fd, d.DevEUI))
 		fd.CreatedAt = fd.CreatedAt.UTC().Round(time.Millisecond)
 		fd.UpdatedAt = fd.UpdatedAt.UTC().Round(time.Millisecond)
 		fd.NextStepAfter = fd.NextStepAfter.UTC().Round(time.Millisecond)
 
-		assert.Equal(FUOTADeploymentMulticastSetup, fd.State)
+		assert.Equal(FUOTADeploymentMulticastCreate, fd.State)
 
 		t.Run("Get fuota deployment", func(t *testing.T) {
 			assert := require.New(t)
@@ -104,6 +108,12 @@ func (ts *StorageTestSuite) TestFUOTADeployment() {
 			fdGet.UpdatedAt = fdGet.UpdatedAt.UTC().Round(time.Millisecond)
 			fdGet.NextStepAfter = fdGet.NextStepAfter.UTC().Round(time.Millisecond)
 			assert.Equal(fd, fdGet)
+		})
+
+		t.Run("Get service-profile id for fuota deployment", func(t *testing.T) {
+			fuotaSPID, err := GetServiceProfileIDForFUOTADeployment(ts.tx, fd.ID)
+			assert.NoError(err)
+			assert.Equal(spID, fuotaSPID)
 		})
 
 		t.Run("Get pending fuota deployments", func(t *testing.T) {
@@ -136,6 +146,36 @@ func (ts *StorageTestSuite) TestFUOTADeployment() {
 			assert.Equal("", devices[0].ErrorMessage)
 		})
 
+		t.Run("Get pending fuota deployment device", func(t *testing.T) {
+			assert := require.New(t)
+
+			fdd, err := GetPendingFUOTADeploymentDevice(ts.tx, d.DevEUI)
+			assert.NoError(err)
+			assert.Equal(d.DevEUI, fdd.DevEUI)
+			assert.Equal(fd.ID, fdd.FUOTADeploymentID)
+			assert.Equal(FUOTADeploymentDevicePending, fdd.State)
+			assert.Equal("", fdd.ErrorMessage)
+
+			t.Run("Update pending fuota deployment device", func(t *testing.T) {
+				assert := require.New(t)
+
+				fdd.State = FUOTADeploymentDeviceError
+				fdd.ErrorMessage = "BOOM!"
+
+				assert.NoError(UpdateFUOTADeploymentDevice(ts.tx, &fdd))
+
+				_, err := GetPendingFUOTADeploymentDevice(ts.tx, d.DevEUI)
+				assert.Equal(ErrDoesNotExist, err)
+
+				devices, err := GetFUOTADeploymentDevices(ts.tx, fd.ID, 10, 0)
+				assert.NoError(err)
+				assert.Len(devices, 1)
+
+				assert.Equal(FUOTADeploymentDeviceError, devices[0].State)
+				assert.Equal("BOOM!", devices[0].ErrorMessage)
+			})
+		})
+
 		t.Run("Update fuota deployment + set done", func(t *testing.T) {
 			assert := require.New(t)
 
@@ -150,6 +190,10 @@ func (ts *StorageTestSuite) TestFUOTADeployment() {
 			fd.Redundancy = 30
 			fd.BlockAckDelay = 7
 			fd.MulticastTimeout = 4
+			fd.GroupType = FUOTADeploymentGroupTypeC
+			fd.DR = 4
+			fd.Frequency = 868300000
+			fd.PingSlotPeriod = 0
 
 			assert.NoError(UpdateFUOTADeployment(ts.tx, &fd))
 			fd.UpdatedAt = fd.UpdatedAt.UTC().Round(time.Millisecond)

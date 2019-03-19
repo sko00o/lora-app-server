@@ -295,6 +295,86 @@ func (ts *FragmentationSessionTestSuite) TestFragSessionDeleteAns() {
 	})
 }
 
+func (ts *FragmentationSessionTestSuite) TestFragSessionStatusAns() {
+	assert := require.New(ts.T())
+	fd := storage.FUOTADeployment{
+		Name: "test-deployment",
+	}
+	assert.NoError(storage.CreateFUOTADeploymentForDevice(ts.tx, &fd, ts.Device.DevEUI))
+	fdd, err := storage.GetPendingFUOTADeploymentDevice(ts.tx, ts.Device.DevEUI)
+	assert.NoError(err)
+
+	tests := []struct {
+		Name                 string
+		FragSessionStatusAns fragmentation.FragSessionStatusAnsPayload
+		ExpectedState        storage.FUOTADeploymentDeviceState
+		ExpectedErrorMessage string
+	}{
+		{
+			Name: "success",
+			FragSessionStatusAns: fragmentation.FragSessionStatusAnsPayload{
+				ReceivedAndIndex: fragmentation.FragSessionStatusAnsPayloadReceivedAndIndex{
+					FragIndex:      0,
+					NbFragReceived: 10,
+				},
+			},
+			ExpectedState: storage.FUOTADeploymentDeviceSuccess,
+		},
+		{
+			Name: "missing frags",
+			FragSessionStatusAns: fragmentation.FragSessionStatusAnsPayload{
+				ReceivedAndIndex: fragmentation.FragSessionStatusAnsPayloadReceivedAndIndex{
+					FragIndex:      0,
+					NbFragReceived: 10,
+				},
+				MissingFrag: 20,
+			},
+			ExpectedState:        storage.FUOTADeploymentDeviceError,
+			ExpectedErrorMessage: "20 fragments missed (10 received).",
+		},
+		{
+			Name: "not enough matrix memory",
+			FragSessionStatusAns: fragmentation.FragSessionStatusAnsPayload{
+				ReceivedAndIndex: fragmentation.FragSessionStatusAnsPayloadReceivedAndIndex{
+					FragIndex:      0,
+					NbFragReceived: 10,
+				},
+				Status: fragmentation.FragSessionStatusAnsPayloadStatus{
+					NotEnoughMatrixMemory: true,
+				},
+			},
+			ExpectedState:        storage.FUOTADeploymentDeviceError,
+			ExpectedErrorMessage: "Not enough matrix memory.",
+		},
+	}
+
+	for _, tst := range tests {
+		ts.T().Run(tst.Name, func(t *testing.T) {
+			assert := require.New(t)
+
+			// start with a clean state
+			fdd.State = storage.FUOTADeploymentDevicePending
+			fdd.ErrorMessage = ""
+			assert.NoError(storage.UpdateFUOTADeploymentDevice(ts.tx, &fdd))
+
+			cmd := fragmentation.Command{
+				CID:     fragmentation.FragSessionStatusAns,
+				Payload: &tst.FragSessionStatusAns,
+			}
+			b, err := cmd.MarshalBinary()
+			assert.NoError(err)
+
+			assert.NoError(HandleRemoteFragmentationSessionCommand(ts.tx, ts.Device.DevEUI, b))
+
+			devices, err := storage.GetFUOTADeploymentDevices(ts.tx, fd.ID, 10, 0)
+			assert.NoError(err)
+			assert.Len(devices, 1)
+			assert.Equal(tst.ExpectedState, devices[0].State)
+			assert.Equal(tst.ExpectedErrorMessage, devices[0].ErrorMessage)
+		})
+	}
+}
+
 func TestFragmentationSession(t *testing.T) {
 	suite.Run(t, new(FragmentationSessionTestSuite))
 }

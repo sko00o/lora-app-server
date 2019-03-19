@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
+	"github.com/brocaar/lora-app-server/api"
 	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
 	"github.com/brocaar/lora-app-server/internal/storage"
 	"github.com/brocaar/loraserver/api/ns"
@@ -71,6 +72,52 @@ func EnqueueMultiple(db sqlx.Ext, multicastGroupID uuid.UUID, fPort uint8, paylo
 
 		out = append(out, fCnt)
 		fCnt++
+	}
+
+	return out, nil
+}
+
+// ListQueue lists the items in the multicast-group queue.
+func ListQueue(db sqlx.Ext, multicastGroupID uuid.UUID) ([]api.MulticastQueueItem, error) {
+
+	mg, err := storage.GetMulticastGroup(db, multicastGroupID, false, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "get multicast-group error")
+	}
+
+	n, err := storage.GetNetworkServerForMulticastGroupID(db, multicastGroupID)
+	if err != nil {
+		return nil, errors.Wrap(err, "get network-server for multicast-group error")
+	}
+
+	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+	if err != nil {
+		return nil, errors.Wrap(err, "get network-server client error")
+	}
+
+	resp, err := nsClient.GetMulticastQueueItemsForMulticastGroup(context.Background(), &ns.GetMulticastQueueItemsForMulticastGroupRequest{
+		MulticastGroupId: multicastGroupID.Bytes(),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "get multicast queue-items error")
+	}
+
+	var out []api.MulticastQueueItem
+	var devAddr lorawan.DevAddr
+	copy(devAddr[:], mg.MulticastGroup.McAddr)
+
+	for _, qi := range resp.MulticastQueueItems {
+		b, err := lorawan.EncryptFRMPayload(mg.MCAppSKey, false, devAddr, qi.FCnt, qi.FrmPayload)
+		if err != nil {
+			return nil, errors.Wrap(err, "decrypt multicast queue-item error")
+		}
+
+		out = append(out, api.MulticastQueueItem{
+			MulticastGroupId: multicastGroupID.String(),
+			FCnt:             qi.FCnt,
+			FPort:            qi.FPort,
+			Data:             b,
+		})
 	}
 
 	return out, nil

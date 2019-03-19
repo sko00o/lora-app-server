@@ -17,6 +17,7 @@ import (
 	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
 	"github.com/brocaar/lora-app-server/internal/config"
 	"github.com/brocaar/lora-app-server/internal/downlink"
+	"github.com/brocaar/lora-app-server/internal/fuota"
 	"github.com/brocaar/lora-app-server/internal/gwping"
 	"github.com/brocaar/lora-app-server/internal/integration"
 	"github.com/brocaar/lora-app-server/internal/integration/application"
@@ -39,6 +40,7 @@ func run(cmd *cobra.Command, args []string) error {
 		startGatewayPing,
 		setupMulticastSetup,
 		setupFragmentation,
+		setupFUOTA,
 		setupAPI,
 	}
 
@@ -150,6 +152,13 @@ func setupMulticastSetup() error {
 func setupFragmentation() error {
 	if err := fragmentation.Setup(config.C); err != nil {
 		return errors.Wrap(err, "fragmentation setup error")
+	}
+	return nil
+}
+
+func setupFUOTA() error {
+	if err := fuota.Setup(config.C); err != nil {
+		return errors.Wrap(err, "fuota setup error")
 	}
 	return nil
 }

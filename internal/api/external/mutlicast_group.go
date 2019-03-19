@@ -484,44 +484,14 @@ func (a *MulticastGroupAPI) ListQueue(ctx context.Context, req *pb.ListMulticast
 		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
 	}
 
-	mg, err := storage.GetMulticastGroup(storage.DB(), mgID, false, false)
+	queueItems, err := multicast.ListQueue(storage.DB(), mgID)
 	if err != nil {
 		return nil, helpers.ErrToRPCError(err)
-	}
-
-	n, err := storage.GetNetworkServerForMulticastGroupID(storage.DB(), mgID)
-	if err != nil {
-		return nil, helpers.ErrToRPCError(err)
-	}
-
-	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
-	if err != nil {
-		return nil, helpers.ErrToRPCError(err)
-	}
-
-	queuItemsResp, err := nsClient.GetMulticastQueueItemsForMulticastGroup(ctx, &ns.GetMulticastQueueItemsForMulticastGroupRequest{
-		MulticastGroupId: mgID.Bytes(),
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	var resp pb.ListMulticastGroupQueueItemsResponse
-	var devAddr lorawan.DevAddr
-	copy(devAddr[:], mg.MulticastGroup.McAddr)
-
-	for _, qi := range queuItemsResp.MulticastQueueItems {
-		b, err := lorawan.EncryptFRMPayload(mg.MCAppSKey, false, devAddr, qi.FCnt, qi.FrmPayload)
-		if err != nil {
-			return nil, helpers.ErrToRPCError(err)
-		}
-
-		resp.MulticastQueueItems = append(resp.MulticastQueueItems, &pb.MulticastQueueItem{
-			MulticastGroupId: mgID.String(),
-			FCnt:             qi.FCnt,
-			FPort:            qi.FPort,
-			Data:             b,
-		})
+	for i, _ := range queueItems {
+		resp.MulticastQueueItems = append(resp.MulticastQueueItems, &queueItems[i])
 	}
 
 	return &resp, nil

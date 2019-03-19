@@ -17,13 +17,14 @@ type FUOTADeploymentState string
 
 // FUOTA deployment states.
 const (
+	FUOTADeploymentMulticastCreate        FUOTADeploymentState = "MC_CREATE"
 	FUOTADeploymentMulticastSetup         FUOTADeploymentState = "MC_SETUP"
 	FUOTADeploymentFragmentationSessSetup FUOTADeploymentState = "FRAG_SESS_SETUP"
 	FUOTADeploymentMulticastSessCSetup    FUOTADeploymentState = "MC_SESS_C_SETUP"
 	FUOTADeploymentEnqueue                FUOTADeploymentState = "ENQUEUE"
-	FUOTADeploymentWaitingTx              FUOTADeploymentState = "WAITING_TX"
-	FUOTADeploymentTransmitted            FUOTADeploymentState = "TRANSMITTED"
-	FUOTADeploymentStatusRequested        FUOTADeploymentState = "STATUS_REQUESTED"
+	FUOTADeploymentStatusRequest          FUOTADeploymentState = "STATUS_REQUEST"
+	FUOTADeploymentSetDeviceStatus        FUOTADeploymentState = "SET_DEVICE_STATUS"
+	FUOTADeploymentCleanup                FUOTADeploymentState = "CLEANUP"
 	FUOTADeploymentDone                   FUOTADeploymentState = "DONE"
 )
 
@@ -37,23 +38,46 @@ const (
 	FUOTADeploymentDeviceError   FUOTADeploymentDeviceState = "ERROR"
 )
 
+// FUOTADeploymentGroupType defines the group-type.
+type FUOTADeploymentGroupType string
+
+// FUOTA deployment group types.
+const (
+	FUOTADeploymentGroupTypeB FUOTADeploymentGroupType = "B"
+	FUOTADeploymentGroupTypeC FUOTADeploymentGroupType = "C"
+)
+
 // FUOTADeployment defiles a firmware update over the air deployment.
 type FUOTADeployment struct {
-	ID                  uuid.UUID            `db:"id"`
-	CreatedAt           time.Time            `db:"created_at"`
-	UpdatedAt           time.Time            `db:"updated_at"`
-	Name                string               `db:"name"`
-	MulticastGroupID    *uuid.UUID           `db:"multicast_group_id"`
-	FragmentationMatrix uint8                `db:"fragmentation_matrix"`
-	Descriptor          [4]byte              `db:"descriptor"`
-	Payload             []byte               `db:"payload"`
-	FragSize            int                  `db:"frag_size"`
-	Redundancy          int                  `db:"redundancy"`
-	BlockAckDelay       int                  `db:"block_ack_delay"`
-	MulticastTimeout    int                  `db:"multicast_timeout"`
-	State               FUOTADeploymentState `db:"state"`
-	UnicastTimeout      time.Duration        `db:"unicast_timeout"`
-	NextStepAfter       time.Time            `db:"next_step_after"`
+	ID                  uuid.UUID                `db:"id"`
+	CreatedAt           time.Time                `db:"created_at"`
+	UpdatedAt           time.Time                `db:"updated_at"`
+	Name                string                   `db:"name"`
+	MulticastGroupID    *uuid.UUID               `db:"multicast_group_id"`
+	GroupType           FUOTADeploymentGroupType `db:"group_type"`
+	DR                  int                      `db:"dr"`
+	Frequency           int                      `db:"frequency"`
+	PingSlotPeriod      int                      `db:"ping_slot_period"`
+	FragmentationMatrix uint8                    `db:"fragmentation_matrix"`
+	Descriptor          [4]byte                  `db:"descriptor"`
+	Payload             []byte                   `db:"payload"`
+	FragSize            int                      `db:"frag_size"`
+	Redundancy          int                      `db:"redundancy"`
+	BlockAckDelay       int                      `db:"block_ack_delay"`
+	MulticastTimeout    int                      `db:"multicast_timeout"`
+	State               FUOTADeploymentState     `db:"state"`
+	UnicastTimeout      time.Duration            `db:"unicast_timeout"`
+	NextStepAfter       time.Time                `db:"next_step_after"`
+}
+
+// FUOTADeploymentDevice defiles the device record of a FUOTA deployment.
+type FUOTADeploymentDevice struct {
+	FUOTADeploymentID uuid.UUID                  `db:"fuota_deployment_id"`
+	DevEUI            lorawan.EUI64              `db:"dev_eui"`
+	CreatedAt         time.Time                  `db:"created_at"`
+	UpdatedAt         time.Time                  `db:"updated_at"`
+	State             FUOTADeploymentDeviceState `db:"state"`
+	ErrorMessage      string                     `db:"error_message"`
 }
 
 // FUOTADeploymentDeviceListItem defines the Device as FUOTA deployment list item.
@@ -81,7 +105,7 @@ func CreateFUOTADeploymentForDevice(db sqlx.Ext, fd *FUOTADeployment, devEUI lor
 	fd.UpdatedAt = now
 	fd.NextStepAfter = now
 	if fd.State == "" {
-		fd.State = FUOTADeploymentMulticastSetup
+		fd.State = FUOTADeploymentMulticastCreate
 	}
 
 	_, err = db.Exec(`
@@ -91,6 +115,7 @@ func CreateFUOTADeploymentForDevice(db sqlx.Ext, fd *FUOTADeployment, devEUI lor
 			updated_at,
 			name,
 			multicast_group_id,
+
 			fragmentation_matrix,
 			descriptor,
 			payload,
@@ -100,8 +125,12 @@ func CreateFUOTADeploymentForDevice(db sqlx.Ext, fd *FUOTADeployment, devEUI lor
 			frag_size,
 			redundancy,
 			block_ack_delay,
-			multicast_timeout
-		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+			multicast_timeout,
+			group_type,
+			dr,
+			frequency,
+			ping_slot_period
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
 		fd.ID,
 		fd.CreatedAt,
 		fd.UpdatedAt,
@@ -117,6 +146,10 @@ func CreateFUOTADeploymentForDevice(db sqlx.Ext, fd *FUOTADeployment, devEUI lor
 		fd.Redundancy,
 		fd.BlockAckDelay,
 		fd.MulticastTimeout,
+		fd.GroupType,
+		fd.DR,
+		fd.Frequency,
+		fd.PingSlotPeriod,
 	)
 	if err != nil {
 		return handlePSQLError(Insert, err, "insert error")
@@ -173,7 +206,11 @@ func GetFUOTADeployment(db sqlx.Ext, id uuid.UUID, forUpdate bool) (FUOTADeploym
 			frag_size,
 			redundancy,
 			block_ack_delay,
-			multicast_timeout
+			multicast_timeout,
+			group_type,
+			dr,
+			frequency,
+			ping_slot_period
 		from
 			fuota_deployment
 		where
@@ -204,13 +241,16 @@ func GetPendingFUOTADeployments(db sqlx.Ext, batchSize int) ([]FUOTADeployment, 
 			frag_size,
 			redundancy,
 			block_ack_delay,
-			multicast_timeout
+			multicast_timeout,
+			group_type,
+			dr,
+			frequency,
+			ping_slot_period
 		from
 			fuota_deployment
 		where
 			state != $1
 			and next_step_after <= $2
-			and multicast_group_id IS NOT NULL
 		limit $3
 		for update
 		skip locked`,
@@ -253,7 +293,11 @@ func UpdateFUOTADeployment(db sqlx.Ext, fd *FUOTADeployment) error {
 			frag_size = $11,
 			redundancy = $12,
 			block_ack_delay = $13,
-			multicast_timeout = $14
+			multicast_timeout = $14,
+			group_type = $15,
+			dr = $16,
+			frequency = $17,
+			ping_slot_period = $18
 		where
 			id = $1`,
 		fd.ID,
@@ -270,6 +314,10 @@ func UpdateFUOTADeployment(db sqlx.Ext, fd *FUOTADeployment) error {
 		fd.Redundancy,
 		fd.BlockAckDelay,
 		fd.MulticastTimeout,
+		fd.GroupType,
+		fd.DR,
+		fd.Frequency,
+		fd.PingSlotPeriod,
 	)
 	if err != nil {
 		return handlePSQLError(Update, err, "update error")
@@ -286,6 +334,69 @@ func UpdateFUOTADeployment(db sqlx.Ext, fd *FUOTADeployment) error {
 		"id":    fd.ID,
 		"state": fd.State,
 	}).Info("fuota deployment updated")
+
+	return nil
+}
+
+// GetPendingFUOTADeploymentDevice returns the pending FUOTA deployment record
+// for the given DevEUI.
+func GetPendingFUOTADeploymentDevice(db sqlx.Queryer, devEUI lorawan.EUI64) (FUOTADeploymentDevice, error) {
+	var out FUOTADeploymentDevice
+
+	err := sqlx.Get(db, &out, `
+		select
+			*
+		from
+			fuota_deployment_device
+		where
+			dev_eui = $1
+			and state = $2`,
+		devEUI,
+		FUOTADeploymentDevicePending,
+	)
+	if err != nil {
+		return out, handlePSQLError(Select, err, "select error")
+	}
+
+	return out, nil
+}
+
+// UpdateFUOTADeploymentDevice updates the given fuota deployment device record.
+func UpdateFUOTADeploymentDevice(db sqlx.Ext, fdd *FUOTADeploymentDevice) error {
+	fdd.UpdatedAt = time.Now()
+
+	res, err := db.Exec(`
+		update
+			fuota_deployment_device
+		set
+			updated_at = $3,
+			state = $4,
+			error_message = $5
+		where
+			dev_eui = $1
+			and fuota_deployment_id = $2`,
+		fdd.DevEUI,
+		fdd.FUOTADeploymentID,
+		fdd.UpdatedAt,
+		fdd.State,
+		fdd.ErrorMessage,
+	)
+	if err != nil {
+		return handlePSQLError(Update, err, "update error")
+	}
+	ra, err := res.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "get rows affected error")
+	}
+	if ra == 0 {
+		return ErrDoesNotExist
+	}
+
+	log.WithFields(log.Fields{
+		"dev_eui":             fdd.DevEUI,
+		"fuota_deployment_id": fdd.FUOTADeploymentID,
+		"state":               fdd.State,
+	}).Info("fuota deployment device updated")
 
 	return nil
 }
@@ -346,6 +457,35 @@ func GetFUOTADeploymentDevices(db sqlx.Queryer, fuotaDeploymentID uuid.UUID, lim
 	return out, nil
 }
 
+// GetServiceProfileIDForFUOTADeployment returns the service-profile ID for the given FUOTA deployment.
+func GetServiceProfileIDForFUOTADeployment(db sqlx.Ext, fuotaDeploymentID uuid.UUID) (uuid.UUID, error) {
+	var out uuid.UUID
+
+	err := sqlx.Get(db, &out, `
+		select
+			a.service_profile_id
+		from
+			fuota_deployment_device fdd
+		inner join
+			device d
+		on
+			d.dev_eui = fdd.dev_eui
+		inner join
+			application a
+		on
+			a.id = d.application_id
+		where
+			fdd.fuota_deployment_id = $1
+		limit 1`,
+		fuotaDeploymentID,
+	)
+	if err != nil {
+		return out, handlePSQLError(Select, err, "select error")
+	}
+
+	return out, nil
+}
+
 func scanFUOTADeployment(row sqlx.ColScanner) (FUOTADeployment, error) {
 	var fd FUOTADeployment
 
@@ -368,6 +508,10 @@ func scanFUOTADeployment(row sqlx.ColScanner) (FUOTADeployment, error) {
 		&fd.Redundancy,
 		&fd.BlockAckDelay,
 		&fd.MulticastTimeout,
+		&fd.GroupType,
+		&fd.DR,
+		&fd.Frequency,
+		&fd.PingSlotPeriod,
 	)
 	if err != nil {
 		return fd, handlePSQLError(Select, err, "select error")

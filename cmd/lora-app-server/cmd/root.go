@@ -61,9 +61,9 @@ func init() {
 	viper.SetDefault("application_server.remote_multicast_setup.sync_retries", 3)
 	viper.SetDefault("application_server.remote_multicast_setup.sync_batch_size", 100)
 
-	viper.SetDefault("application_server.fragmentation.sync_interval", time.Second)
-	viper.SetDefault("application_server.fragmentation.sync_retries", 3)
-	viper.SetDefault("application_server.fragmentation.sync_batch_size", 100)
+	viper.SetDefault("application_server.fragmentation_session.sync_interval", time.Second)
+	viper.SetDefault("application_server.fragmentation_session.sync_retries", 3)
+	viper.SetDefault("application_server.fragmentation_session.sync_batch_size", 100)
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)

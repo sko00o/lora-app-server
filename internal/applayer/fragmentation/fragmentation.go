@@ -65,10 +65,18 @@ func HandleRemoteFragmentationSessionCommand(db sqlx.Ext, devEUI lorawan.EUI64, 
 	case fragmentation.FragSessionDeleteAns:
 		pl, ok := cmd.Payload.(*fragmentation.FragSessionDeleteAnsPayload)
 		if !ok {
-			return fmt.Errorf("exlected *fragmentation.FragSessionDeleteAnsPayload, got: %T", cmd.Payload)
+			return fmt.Errorf("expected *fragmentation.FragSessionDeleteAnsPayload, got: %T", cmd.Payload)
 		}
 		if err := handleFragSessionDeleteAns(db, devEUI, pl); err != nil {
 			return errors.Wrap(err, "handle FragSessionDeleteAns error")
+		}
+	case fragmentation.FragSessionStatusAns:
+		pl, ok := cmd.Payload.(*fragmentation.FragSessionStatusAnsPayload)
+		if !ok {
+			return fmt.Errorf("expected *fragmentation.FragSessionStatusAns, got: %T", cmd.Payload)
+		}
+		if err := handleFragSessionStatusAns(db, devEUI, pl); err != nil {
+			return errors.Wrap(err, "handle FragSessionStatusAns error")
 		}
 	default:
 		return fmt.Errorf("CID not implemented: %s", cmd.CID)
@@ -206,6 +214,40 @@ func handleFragSessionDeleteAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *fragmenta
 	rfs.StateProvisioned = true
 	if err := storage.UpdateRemoteFragmentationSession(db, &rfs); err != nil {
 		return errors.Wrap(err, "update remote fragmentation session error")
+	}
+
+	return nil
+}
+
+func handleFragSessionStatusAns(db sqlx.Ext, devEUI lorawan.EUI64, pl *fragmentation.FragSessionStatusAnsPayload) error {
+	log.WithFields(log.Fields{
+		"dev_eui":                  devEUI,
+		"frag_index":               pl.ReceivedAndIndex.FragIndex,
+		"missing_frag":             pl.MissingFrag,
+		"nb_frag_received":         pl.ReceivedAndIndex.NbFragReceived,
+		"not_enough_matrix_memory": pl.Status.NotEnoughMatrixMemory,
+	}).Info("FragSessionStatusAns received")
+
+	fdd, err := storage.GetPendingFUOTADeploymentDevice(db, devEUI)
+	if err != nil {
+		return errors.Wrap(err, "get pending fuota deployment device error")
+	}
+
+	fdd.State = storage.FUOTADeploymentDeviceSuccess
+
+	if pl.MissingFrag > 0 {
+		fdd.State = storage.FUOTADeploymentDeviceError
+		fdd.ErrorMessage = fmt.Sprintf("%d fragments missed (%d received).", pl.MissingFrag, pl.ReceivedAndIndex.NbFragReceived)
+	}
+
+	if pl.Status.NotEnoughMatrixMemory {
+		fdd.State = storage.FUOTADeploymentDeviceError
+		fdd.ErrorMessage = "Not enough matrix memory."
+	}
+
+	err = storage.UpdateFUOTADeploymentDevice(db, &fdd)
+	if err != nil {
+		return errors.Wrap(err, "update fuota deployment device error")
 	}
 
 	return nil
