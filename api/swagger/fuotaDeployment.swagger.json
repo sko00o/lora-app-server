@@ -1,0 +1,300 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "fuotaDeployment.proto",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/devices/{dev_eui}/fuota-deployment": {
+      "post": {
+        "summary": "CreateForDevEUI creates a deployment for the given DevEUI.",
+        "operationId": "CreateForDevEUI",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiCreateFUOTADeploymentForDevEUIResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "dev_eui",
+            "description": "Device EUI (HEX encoded).",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apiCreateFUOTADeploymentForDevEUIRequest"
+            }
+          }
+        ],
+        "tags": [
+          "FUOTADeploymentService"
+        ]
+      }
+    },
+    "/api/fuota-deployment/{fuota_deployment_id}/devices": {
+      "get": {
+        "summary": "ListDevices lists the devices (and status) for the given fuota deployment ID.",
+        "operationId": "ListDevices",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiListFUOTADeploymentDevicesResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fuota_deployment_id",
+            "description": "ID of the deployment (string formatted UUID).\nThis value will be automatically assigned on create.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "description": "Max number of items to return.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "offset",
+            "description": "Offset in the result-set (for pagination).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "FUOTADeploymentService"
+        ]
+      }
+    },
+    "/api/fuota-deployment/{id}": {
+      "get": {
+        "summary": "Get returns the fuota deployment for the given id.",
+        "operationId": "Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiGetFUOTADeploymentResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "ID of the deployment (string formatted UUID).\nThis value will be automatically assigned on create.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "FUOTADeploymentService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "apiCreateFUOTADeploymentForDevEUIRequest": {
+      "type": "object",
+      "properties": {
+        "devEUI": {
+          "type": "string",
+          "description": "Device EUI (HEX encoded)."
+        },
+        "fuotaDeployment": {
+          "$ref": "#/definitions/apiFUOTADeployment",
+          "description": "FUOTA deployment."
+        }
+      }
+    },
+    "apiCreateFUOTADeploymentForDevEUIResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID of the created deployment (string formatted UUID)."
+        }
+      }
+    },
+    "apiFUOTADeployment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID of the deployment (string formatted UUID).\nThis value will be automatically assigned on create."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the deployment."
+        },
+        "groupType": {
+          "$ref": "#/definitions/apiMulticastGroupType",
+          "title": "Multicast type.\nCurrently only Class-C is supported!"
+        },
+        "dr": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Data-rate."
+        },
+        "frequency": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Frequency (Hz)."
+        },
+        "payload": {
+          "type": "string",
+          "format": "byte",
+          "description": "Payload."
+        },
+        "redundancy": {
+          "type": "number",
+          "format": "float",
+          "description": "Redundancy (number of packages)."
+        },
+        "multicastTimeout": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Multicast time-out.\nPlease refer to the Remote Multicast Setup specification as this field\nhas a different meaning for Class-B and Class-C groups."
+        },
+        "unicastTimeout": {
+          "type": "string",
+          "description": "Unicast time-out.\nSet this to the value in which you at least expect an uplink frame from the\ndevice. The FUOTA deployment engine will wait at least for the given time\nbefore proceeding with the next steps."
+        },
+        "state": {
+          "$ref": "#/definitions/apiFUOTADeploymentState",
+          "description": "Deployment state.\nThis value will be automatically set on create."
+        },
+        "nextStepAfter": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Next step after.\nThis value will be automatically set on create."
+        }
+      }
+    },
+    "apiFUOTADeploymentDeviceListItem": {
+      "type": "object",
+      "properties": {
+        "devEUI": {
+          "type": "string",
+          "description": "Device EUI (HEX encoded)."
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "Device name."
+        },
+        "state": {
+          "$ref": "#/definitions/apiFUOTADeploymentDeviceState",
+          "description": "Device state."
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "Error message (in case of error state)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Created at timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Updated at timestamp."
+        }
+      }
+    },
+    "apiFUOTADeploymentDeviceState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "SUCCESS",
+        "ERROR"
+      ],
+      "default": "PENDING",
+      "description": " - PENDING: Pending.\n - SUCCESS: Success.\n - ERROR: Error."
+    },
+    "apiFUOTADeploymentState": {
+      "type": "string",
+      "enum": [
+        "MULTICAST_CREATE",
+        "REMOTE_MULTICAST_SETUP",
+        "FRAGMENTATION_SESSION_SETUP",
+        "MULTICAST_C_SESSION_SETUP",
+        "ENQUEUE",
+        "STATUS_REQUEST",
+        "SET_DEVICE_STATUS",
+        "CLEANUP",
+        "DONE"
+      ],
+      "default": "MULTICAST_CREATE",
+      "description": " - MULTICAST_CREATE: Create multicast-group.\n - REMOTE_MULTICAST_SETUP: Remote multicast setup.\n - FRAGMENTATION_SESSION_SETUP: Fragmentation-session setup.\n - MULTICAST_C_SESSION_SETUP: Multicast Class-C session setup.\n - ENQUEUE: Enqueue the fragments into the multicast-group queue.\n - STATUS_REQUEST: Request fragmentation status from devices.\n - SET_DEVICE_STATUS: Set the per-device status (and errors).\n - CLEANUP: Cleanup multicast-group.\n - DONE: FUOTA deployment has been completed."
+    },
+    "apiGetFUOTADeploymentResponse": {
+      "type": "object",
+      "properties": {
+        "fuotaDeployment": {
+          "$ref": "#/definitions/apiFUOTADeployment"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Created at timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp."
+        }
+      }
+    },
+    "apiListFUOTADeploymentDevicesResponse": {
+      "type": "object",
+      "properties": {
+        "totalCount": {
+          "type": "string",
+          "format": "int64",
+          "description": "Total number of devices for the FUOTA deployment."
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/apiFUOTADeploymentDeviceListItem"
+          }
+        }
+      }
+    },
+    "apiMulticastGroupType": {
+      "type": "string",
+      "enum": [
+        "CLASS_C",
+        "CLASS_B"
+      ],
+      "default": "CLASS_C",
+      "description": " - CLASS_C: Class-C.\n - CLASS_B: Class-B."
+    }
+  }
+}

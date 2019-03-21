@@ -18,6 +18,7 @@ protoc -I../vendor -I${GRPC_GW_PATH} -I. --go_out=plugins=grpc:. \
     deviceProfile.proto \
     gatewayProfile.proto \
     multicastGroup.proto \
+	fuotaDeployment.proto \
     internal.proto
 
 # generate the JSON interface code
@@ -35,6 +36,7 @@ protoc -I../vendor -I${GRPC_GW_PATH} -I. --grpc-gateway_out=logtostderr=true:. \
     deviceProfile.proto \
     gatewayProfile.proto \
     multicastGroup.proto \
+	fuotaDeployment.proto \
     internal.proto
 
 # generate the swagger definitions
@@ -52,6 +54,7 @@ protoc -I../vendor -I${GRPC_GW_PATH} -I. --swagger_out=json_names_for_fields=tru
     deviceProfile.proto \
     gatewayProfile.proto \
     multicastGroup.proto \
+	fuotaDeployment.proto \
     internal.proto
 
 # merge the swagger code into one file

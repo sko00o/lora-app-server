@@ -7,6 +7,7 @@ import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
 
 import Delete from "mdi-material-ui/Delete";
+import CloudUpload from "mdi-material-ui/CloudUpload";
 
 import TitleBar from "../../components/TitleBar";
 import TitleBarTitle from "../../components/TitleBarTitle";
@@ -22,6 +23,7 @@ import DeviceKeys from "./DeviceKeys";
 import DeviceActivation from "./DeviceActivation"
 import DeviceData from "./DeviceData";
 import DeviceFrames from "./DeviceFrames";
+import ListFUOTADeployments from "./ListFUOTADeployments";
 
 import theme from "../../theme";
 
@@ -104,6 +106,8 @@ class DeviceLayout extends Component {
       tab = 3;
     } else if (window.location.href.endsWith("/frames")) {
       tab = 4;
+    } else if (window.location.href.endsWith("/fuota-deployments")) {
+      tab = 5;
     }
 
     if (tab > 0 && !this.state.admin) {
@@ -163,6 +167,7 @@ class DeviceLayout extends Component {
             <Tab label="Activation" component={Link} to={`/organizations/${this.props.match.params.organizationID}/applications/${this.props.match.params.applicationID}/devices/${this.props.match.params.devEUI}/activation`} />
             <Tab label="Live device data" component={Link} to={`/organizations/${this.props.match.params.organizationID}/applications/${this.props.match.params.applicationID}/devices/${this.props.match.params.devEUI}/data`} />
             <Tab label="Live LoRaWAN Frames" component={Link} to={`/organizations/${this.props.match.params.organizationID}/applications/${this.props.match.params.applicationID}/devices/${this.props.match.params.devEUI}/frames`} />
+            <Tab label="FUOTA" component={Link} to={`/organizations/${this.props.match.params.organizationID}/applications/${this.props.match.params.applicationID}/devices/${this.props.match.params.devEUI}/fuota-deployments`} />
           </Tabs>
         </Grid>
 
@@ -173,6 +178,7 @@ class DeviceLayout extends Component {
             <Route exact path={`${this.props.match.path}/activation`} render={props => <DeviceActivation device={this.state.device.device} admin={this.state.admin} deviceProfile={this.state.deviceProfile.deviceProfile} {...props} />} />
             <Route exact path={`${this.props.match.path}/data`} render={props => <DeviceData device={this.state.device.device} admin={this.state.admin} {...props} />} />
             <Route exact path={`${this.props.match.path}/frames`} render={props => <DeviceFrames device={this.state.device.device} admin={this.state.admin} {...props} />} />
+            <Route exact path={`${this.props.match.path}/fuota-deployments`} render={props => <ListFUOTADeployments device={this.state.device.device} admin={this.state.admin} {...props} /> } />
           </Switch>
         </Grid>
       </Grid>
