@@ -249,11 +249,32 @@ func (a *DeviceAPI) Update(ctx context.Context, req *pb.UpdateDeviceRequest) (*e
 	}
 
 	err = storage.Transaction(func(tx sqlx.Ext) error {
-		d, err := storage.GetDevice(storage.DB(), devEUI, true, false)
+		d, err := storage.GetDevice(tx, devEUI, true, false)
 		if err != nil {
 			return helpers.ErrToRPCError(err)
 		}
 
+		// If the device is moved to a different application, validate that
+		// the new application is assigned to the same service-profile.
+		// This to guarantee that the new application is still on the same
+		// network-server and is not assigned to a different organization.
+		if req.Device.ApplicationId != d.ApplicationID {
+			appOld, err := storage.GetApplication(tx, d.ApplicationID)
+			if err != nil {
+				return helpers.ErrToRPCError(err)
+			}
+
+			appNew, err := storage.GetApplication(tx, req.Device.ApplicationId)
+			if err != nil {
+				return helpers.ErrToRPCError(err)
+			}
+
+			if appOld.ServiceProfileID != appNew.ServiceProfileID {
+				return grpc.Errorf(codes.InvalidArgument, "when moving a device from application A to B, both A and B must share the same service-profile")
+			}
+		}
+
+		d.ApplicationID = req.Device.ApplicationId
 		d.DeviceProfileID = dpID
 		d.Name = req.Device.Name
 		d.Description = req.Device.Description
@@ -508,7 +529,7 @@ func (a *DeviceAPI) Activate(ctx context.Context, req *pb.ActivateDeviceRequest)
 		return nil, helpers.ErrToRPCError(err)
 	}
 
-	dp, err := storage.GetDeviceProfile(storage.DB(), d.DeviceProfileID)
+	dp, err := storage.GetDeviceProfile(storage.DB(), d.DeviceProfileID, false, false)
 	if err != nil {
 		return nil, helpers.ErrToRPCError(err)
 	}
@@ -875,6 +896,7 @@ func convertUplinkAndDownlinkFrames(up *gw.UplinkFrameSet, down *gw.DownlinkFram
 				Antenna:           rxInfo.Antenna,
 				Location:          rxInfo.Location,
 				FineTimestampType: rxInfo.FineTimestampType,
+				Context:           rxInfo.Context,
 			}
 
 			switch rxInfo.FineTimestampType {
@@ -914,15 +936,14 @@ func convertUplinkAndDownlinkFrames(up *gw.UplinkFrameSet, down *gw.DownlinkFram
 			copy(mac[:], down.TxInfo.GatewayId[:])
 
 			downlinkFrameLog.TxInfo = &pb.DownlinkTXInfo{
-				GatewayId:         mac.String(),
-				Immediately:       down.TxInfo.Immediately,
-				TimeSinceGpsEpoch: down.TxInfo.TimeSinceGpsEpoch,
-				Timestamp:         down.TxInfo.Timestamp,
-				Frequency:         down.TxInfo.Frequency,
-				Power:             down.TxInfo.Power,
-				Modulation:        down.TxInfo.Modulation,
-				Board:             down.TxInfo.Board,
-				Antenna:           down.TxInfo.Antenna,
+				GatewayId:  mac.String(),
+				Frequency:  down.TxInfo.Frequency,
+				Power:      down.TxInfo.Power,
+				Modulation: down.TxInfo.Modulation,
+				Board:      down.TxInfo.Board,
+				Antenna:    down.TxInfo.Antenna,
+				Timing:     down.TxInfo.Timing,
+				Context:    down.TxInfo.Context,
 			}
 
 			if lora := down.TxInfo.GetLoraModulationInfo(); lora != nil {
@@ -934,6 +955,24 @@ func convertUplinkAndDownlinkFrames(up *gw.UplinkFrameSet, down *gw.DownlinkFram
 			if fsk := down.TxInfo.GetFskModulationInfo(); fsk != nil {
 				downlinkFrameLog.TxInfo.ModulationInfo = &pb.DownlinkTXInfo_FskModulationInfo{
 					FskModulationInfo: fsk,
+				}
+			}
+
+			if ti := down.TxInfo.GetImmediatelyTimingInfo(); ti != nil {
+				downlinkFrameLog.TxInfo.TimingInfo = &pb.DownlinkTXInfo_ImmediatelyTimingInfo{
+					ImmediatelyTimingInfo: ti,
+				}
+			}
+
+			if ti := down.TxInfo.GetDelayTimingInfo(); ti != nil {
+				downlinkFrameLog.TxInfo.TimingInfo = &pb.DownlinkTXInfo_DelayTimingInfo{
+					DelayTimingInfo: ti,
+				}
+			}
+
+			if ti := down.TxInfo.GetGpsEpochTimingInfo(); ti != nil {
+				downlinkFrameLog.TxInfo.TimingInfo = &pb.DownlinkTXInfo_GpsEpochTimingInfo{
+					GpsEpochTimingInfo: ti,
 				}
 			}
 		}
